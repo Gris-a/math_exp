@@ -1,7 +1,7 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
-const int MAX_LABELS  = 100;
+const int MAX_VARIABLES = 100;
 
 enum PlacePref
 {
@@ -12,9 +12,10 @@ enum PlacePref
 
 enum NodeType
 {
-    VAL = 0,
-    VAR = 1,
-    OP  = 2
+    UNK = 0,
+    VAL = 1,
+    VAR = 2,
+    OP  = 3,
 };
 
 enum Operator
@@ -27,9 +28,9 @@ enum Operator
 
 typedef union
 {
-    double val;
-    char   var;
     Operator op;
+    double  val;
+    char    var;
 } data_t;
 
 struct Node
@@ -42,7 +43,7 @@ struct Node
     Node *right;
 };
 
-struct Label
+struct Variable
 {
     char name;
     double val;
@@ -53,8 +54,8 @@ struct Tree
     Node *root;
     size_t size;
 
-    Label labels[MAX_LABELS];
-    size_t n_labels;
+    Variable variables[MAX_VARIABLES];
+    size_t n_vars;
 };
 
 

@@ -4,8 +4,9 @@ int main(void)
 {
     Tree tree = ReadTree("aboba.txt");
     TREE_DUMP(&tree);
-
-    printf("%lg", TreeCalculate(&tree));
+    FILE *dump = fopen("main.tex", "wb");
+    TreeTex(&tree, NULL, dump);
+    fclose(dump);
 
     TreeDtor(&tree);
 }

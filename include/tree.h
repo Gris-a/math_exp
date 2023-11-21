@@ -37,11 +37,11 @@ int NodeDtor(Node *node);
 
 Node *TreeSearchParent(Tree *const tree, Node *const search_node);
 
-void TreeTextDump(Tree *const tree, FILE *dump_file = LOG_FILE);
-
 void TreeDot(Tree *const tree, const char *png_file_name);
 
 void TreeDump(Tree *tree, const char *func, const int line);
+
+void TreeTex(Tree *const tree, const char *const message, FILE *dump_file);
 
 Tree ReadTree(const char *const file_name);
 
