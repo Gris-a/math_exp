@@ -7,5 +7,5 @@ int main(void)
 
     printf("%lg", TreeCalculate(&tree));
 
-    TreeDtor(&tree, tree.root);
+    TreeDtor(&tree);
 }
