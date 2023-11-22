@@ -8,17 +8,6 @@
 
 #include "../include/tree.h"
 
-Tree TreeCtor(const data_t init_val, const NodeType type)
-{
-    Node *root = NodeCtor(init_val, type);
-    ASSERT(root, return {});
-
-    Tree tree = {root, 1};
-
-    return tree;
-}
-
-
 static void SubTreeDtor(Tree *tree, Node *sub_tree)
 {
     if(!sub_tree) return;
@@ -44,80 +33,6 @@ int TreeDtor(Tree *tree)
 }
 
 
-Node *TreeAdd(Tree *tree, Node *tree_node, const data_t val, const NodeType type, const PlacePref pref)
-{
-    TREE_VERIFICATION(tree, NULL);
-
-    ASSERT(tree_node, return NULL);
-
-    Node **next = &tree_node;
-    while(*next)
-    {
-        switch(pref)
-        {
-            case LEFT:
-                next = &((*next)->left);
-                break;
-            case RIGHT:
-                next = &((*next)->right);
-                break;
-            case AUTO:
-                if(val.val <= (*next)->data.val) next = &((*next)->left );
-                else                             next = &((*next)->right);
-                break;
-            default: return NULL;
-        }
-    }
-
-    (*next) = NodeCtor(val, type);
-    ASSERT((*next), return NULL);
-
-    if(type == VAR)
-    {
-        tree->variables[++tree->n_vars].name = val.var;
-    }
-    tree->size++;
-
-    return (*next);
-}
-
-Node *TreeAddNode(Tree *tree, Node *tree_node, Node *const add_node, const PlacePref pref)
-{
-    TREE_VERIFICATION(tree, NULL);
-
-    ASSERT(tree_node, return NULL);
-    ASSERT(add_node , return NULL);
-
-    Node **next = &tree_node;
-    while(*next)
-    {
-        switch(pref)
-        {
-            case LEFT:
-                next = &((*next)->left);
-                break;
-            case RIGHT:
-                next = &((*next)->right);
-                break;
-            case AUTO:
-                if(add_node->data.val <= (*next)->data.val) next = &((*next)->left );
-                else                                        next = &((*next)->right);
-                break;
-            default: return NULL;
-        }
-    }
-
-    (*next) = add_node;
-    if(add_node->type == VAR)
-    {
-        tree->variables[++tree->n_vars].name = add_node->data.var;
-    }
-    tree->size++;
-
-    return (*next);
-}
-
-
 Node *NodeCtor(const data_t val, const NodeType type, Node *const left, Node *const right)
 {
     Node *node = (Node *)calloc(1, sizeof(Node));
@@ -136,6 +51,7 @@ int NodeDtor(Node *node)
     ASSERT(node, return EXIT_FAILURE);
 
     free(node);
+
     return EXIT_SUCCESS;
 }
 
@@ -148,9 +64,10 @@ static NodeType ReadData(char **buffer, data_t *data, Variable vars[], size_t *n
     if(!sscanf(*buffer, " %lg%n", &data->val, &offset))
     {
         ans = OP;
-
         char ch = 0;
-        sscanf(*buffer, " %c%n", &ch, &offset);
+
+        int scaned = sscanf(*buffer, " %c%n", &ch, &offset);
+        if(scaned == EOF) return UNK;
 
         switch(ch)
         {
@@ -262,20 +179,22 @@ static Node *ReadSubTree(char *tree_buf, size_t *counter, Variable vars[], size_
 static size_t FileSize(const char *file_name)
 {
     struct stat file_info = {};
-
-    int exit_status = stat(file_name, &file_info);
-    ASSERT(exit_status != EOF, return ULLONG_MAX);
+    stat(file_name, &file_info);
 
     return (size_t)file_info.st_size;
 }
 
 Tree ReadTree(const char *const file_name)
 {
-    size_t file_size = FileSize(file_name);
-    ASSERT(file_size != ULLONG_MAX, return {});
-
     FILE *file = fopen(file_name, "rb");
-    ASSERT(file, return {});
+    if(!file)
+    {
+        LOG("No such file: \"%s\"", file_name);
+        return {};
+    }
+
+
+    size_t file_size = FileSize(file_name);
 
     char *buffer = (char *)calloc(file_size + 1, sizeof(char));
     ASSERT(buffer, fclose(file); return {});
@@ -297,7 +216,7 @@ Tree ReadTree(const char *const file_name)
 
 static Variable *VariablesParsing(Tree *const tree, const char var)
 {
-    for(size_t i = 0; i < tree->n_vars && i < MAX_VARIABLES; i++)
+    for(size_t i = 0; i < tree->n_vars; i++)
     {
         if(var == tree->variables[i].name) return tree->variables + i;
     }
@@ -336,21 +255,22 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
                     if(abs(calc_right) < M_ERR)
                     {
                         LOG("Division by zero.\n");
-                        return NAN;
+                        break;
                     }
                     return calc_left / calc_right;
                 }
                 default:
                 {
                     LOG("Unknown operator.\n");
-                    return NAN;
+                    break;
                 }
             }
+            break;
         }
         case VAR:
         {
             Variable *var = VariablesParsing(tree, node->data.var);
-            ASSERT(var, return NAN);
+            ASSERT(var, break);
 
             return var->val;
         }
@@ -358,7 +278,7 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
         default:
         {
             LOG("Unknown node type.\n");
-            return NAN;
+            break;
         }
     }
 
@@ -472,49 +392,45 @@ static void SubTreeTex(Node *const tree_node, const PlacePref node_pos, const da
 
     if(op_cmp > 0)
     {
-        fprintf(dump_file, "(");
+        fputc('(', dump_file);
     }
 
     if(tree_node->type == OP && tree_node->data.op == DIV)
     {
         fprintf(dump_file, "\\frac");
 
-        fprintf(dump_file, "{");
+        fputc('{', dump_file);
         SubTreeTex(tree_node->left, LEFT, tree_node->data, dump_file);
-        fprintf(dump_file, "}");
+        fputc('}', dump_file);
 
-        fprintf(dump_file, "{");
+        fputc('{', dump_file);
         SubTreeTex(tree_node->right, RIGHT, tree_node->data, dump_file);
-        fprintf(dump_file, "}");
+        fputc('}', dump_file);
     }
     else if(tree_node->type == OP && tree_node->data.op == MUL)
     {
         SubTreeTex(tree_node->left, LEFT, tree_node->data, dump_file);
-
         fprintf(dump_file, " \\cdot ");
-
         SubTreeTex(tree_node->right, RIGHT, tree_node->data, dump_file);
     }
     else
     {
         SubTreeTex(tree_node->left, LEFT, tree_node->data, dump_file);
-
         NodeDataDump(dump_file, tree_node);
-
         SubTreeTex(tree_node->right, RIGHT, tree_node->data, dump_file);
     }
 
     if(op_cmp > 0)
     {
-        fprintf(dump_file, ")");
+        fputc(')', dump_file);
     }
 }
 
 void TreeTex(Tree *const tree, const char *const message, FILE *dump_file)
 {
-    static char basic_messages[][MAX_STR_LEN] = {"It is obvious, that:",
-                                                 "It is easy to see that:",
-                                                 "Let's take it on faith, that:"};
+    static char basic_messages[][MAX_LEN] = {"It is obvious, that:",
+                                             "It is easy to see that:",
+                                             "Let's take it on faith, that:"};
     srand((unsigned int)time(NULL));
 
     if(!tree) return;
@@ -524,15 +440,8 @@ void TreeTex(Tree *const tree, const char *const message, FILE *dump_file)
 
     fprintf(dump_file, "\\documentclass[12pt,a4paper]{extreport}\n"
                        "\\begin{document}\n");
-    if(message)
-    {
-        fprintf(dump_file, "%s\n", message);
-    }
-    else
-    {
-        int rand_message = rand() % 3;
-        fprintf(dump_file, "%s\n", basic_messages[rand_message]);
-    }
+
+    fprintf(dump_file, "%s\n", (message) ? message : basic_messages[rand() % 3]);
 
     fprintf(dump_file, "$$");
     SubTreeTex(tree->root, AUTO, {}, dump_file);
@@ -542,7 +451,7 @@ void TreeTex(Tree *const tree, const char *const message, FILE *dump_file)
 }
 
 
-static void SubTreeTextDump(Node *const tree_node, const PlacePref node_pos, const data_t parent_data)
+static void SubTreeTextDump(Node *const tree_node, const PlacePref node_pos, const data_t parent_data = {})
 {
     if(!tree_node) return;
 
@@ -579,7 +488,7 @@ static void TreeTextDump(Tree *const tree)
         LOG("\t\t\'%c\' =  %lg;\n", tree->variables[i].name, tree->variables[i].val);
     }
 
-    SubTreeTextDump(tree->root, AUTO, {});
+    SubTreeTextDump(tree->root, AUTO);
 }
 
 
@@ -659,7 +568,7 @@ void TreeDot(Tree *const tree, const char *png_file_name)
 
     fclose(dot_file);
 
-    char sys_cmd[MAX_STR_LEN] = {};
+    char sys_cmd[MAX_LEN] = {};
     sprintf(sys_cmd, "dot tree.dot -T png -o %s", png_file_name);
     system(sys_cmd);
 
@@ -679,7 +588,7 @@ void TreeDump(Tree *tree, const char *func, const int line)
 
     if(num == 0) MakeDumpDir();
 
-    char file_name[MAX_STR_LEN] = {};
+    char file_name[MAX_LEN] = {};
 
     TreeTextDump(tree);
 
@@ -707,8 +616,8 @@ static void TreeSizeValidation(Tree *const tree, Node *const tree_node, size_t *
 
 bool IsTreeValid(Tree *const tree)
 {
-    ASSERT(tree && tree->root    , return false);
-    ASSERT(tree->size <= UINT_MAX, return false);
+    ASSERT(tree && tree->root   , return false);
+    ASSERT(tree->size <= INT_MAX, return false);
 
     ASSERT(tree->n_vars <= MAX_VARIABLES, return false);
     for(size_t i = 0; i < tree->n_vars; i++)
