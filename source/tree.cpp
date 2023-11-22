@@ -214,6 +214,15 @@ Tree ReadTree(const char *const file_name)
 }
 
 
+static void SetVariables(Tree *const tree)
+{
+    for(size_t i = 0; i < tree->n_vars; i++)
+    {
+        printf("Set \"%c\" equal to:", tree->variables[i].name);
+        scanf("%lg", &tree->variables[i].val);
+    }
+}
+
 static Variable *VariablesParsing(Tree *const tree, const char var)
 {
     for(size_t i = 0; i < tree->n_vars; i++)
@@ -288,6 +297,8 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
 double TreeCalculate(Tree *const tree)
 {
     TREE_VERIFICATION(tree, NAN);
+
+    SetVariables(tree);
 
     return SubTreeCalculate(tree, tree->root);
 }
@@ -401,9 +412,7 @@ static void SubTreeTex(Node *const tree_node, const PlacePref node_pos, const da
 
         fputc('{', dump_file);
         SubTreeTex(tree_node->left, LEFT, tree_node->data, dump_file);
-        fputc('}', dump_file);
-
-        fputc('{', dump_file);
+        fprintf(dump_file, "}{");
         SubTreeTex(tree_node->right, RIGHT, tree_node->data, dump_file);
         fputc('}', dump_file);
     }

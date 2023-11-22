@@ -8,5 +8,8 @@ int main(void)
     TreeTex(&tree, NULL, dump);
     fclose(dump);
 
+    TreeCalculate(&tree);
+    TREE_DUMP(&tree);
+
     TreeDtor(&tree);
 }
