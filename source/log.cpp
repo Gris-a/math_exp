@@ -25,6 +25,7 @@ FILE *OpenLog(void)
     return log_file;
 }
 
+
 void CloseLog(void)
 {
     fflush(LOG_FILE);

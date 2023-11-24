@@ -1,15 +1,18 @@
+#include <stdlib.h>
+
 #include "include/tree.h"
+#include "include/diff.h"
 
 int main(void)
 {
-    Tree tree = ReadTree("aboba.txt");
+    NamesTable table = {};
+    Tree tree = ReadTree("aboba.txt", &table);
     TREE_DUMP(&tree);
-    FILE *dump = fopen("main.tex", "wb");
-    TreeTex(&tree, NULL, dump);
-    fclose(dump);
-
-    TreeCalculate(&tree);
-    TREE_DUMP(&tree);
-
-    TreeDtor(&tree);
+    printf("%lg\n", TreeCalculate(&tree));
+    TreeTex(&tree, "tree.tex");
+    // Tree deriv = Derivative(&tree, "x");
+    // TREE_DUMP(&deriv);
+    TreeDtor(&tree, tree.root);
+    // TreeDtor(&deriv, deriv.root);
+    NamesTableDtor(&table);
 }
