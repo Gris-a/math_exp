@@ -4,40 +4,20 @@
 #include <stdbool.h>
 
 #include "log.h"
-#include "names_table.h"
+#include "variables.h"
 
 const size_t BUF_SIZE = 1000;
 
-enum NodePos
-{
-    LEFT  = -1,
-    AUTO  =  0,
-    RIGHT =  1
-};
-
+#define DEF_OP(enum, literal, eval, dif, smpl) enum,
 enum Operator
 {
-    ADD = 0,
-    SUB = 1,
-    MUL = 2,
-    DIV = 3,
-    POW = 4,
+    #include "../include/Operators.h"
 };
-
-enum Function
-{
-    SIN = 0,
-    COS = 1,
-    TG  = 2,
-    CTG = 3,
-    LN  = 5,
-
-};
+#undef DEF_OP
 
 typedef union
 {
     Operator op;
-    Function func;
     double   num;
     char    *var;
 } data_t;
@@ -48,7 +28,6 @@ enum NodeType
     VAL  = 1,
     VAR  = 2,
     OP   = 3,
-    FUNC = 4
 };
 
 struct Node
@@ -63,7 +42,7 @@ struct Node
 struct Tree
 {
     Node *root;
-    NamesTable *table;
+    VariablesTable *table;
 
     size_t size;
 };
@@ -82,19 +61,13 @@ struct Tree
 #define TREE_VERIFICATION(tree_ptr, ...)
 #endif
 
-Tree ReadTree(const char *file_name, NamesTable *table);
+Tree ReadTree(const char *file_name, VariablesTable *table);
 
 int TreeDtor(Tree *tree, Node *root);
 
 Node *NodeCtor(const data_t val, const NodeType type, Node *const left = NULL, Node *const right = NULL);
 
 int NodeDtor(Node *node);
-
-Node *SubTreeCopy(Node *const node, size_t *counter = NULL);
-
-Node *TreeSearchParent(Tree *const tree, Node *const search_node);
-
-void TreeDot(Tree *const tree, const char *png_file_name);
 
 void TreeDump(Tree *tree, const char *func, const int line);
 
