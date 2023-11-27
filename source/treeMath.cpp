@@ -24,20 +24,25 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
 
     switch(node->type)
     {
-        case VAL: return node->data.num;
+        case VAL:
+        {
+            return node->data.num;
+        }
         case OP:
         {
             double calc_left  = SubTreeCalculate(tree, node->left);
             double calc_right = SubTreeCalculate(tree, node->right);
 
-#define DEF_OP(enum, literal, eval, dif, smpl) case enum: eval;
-
+#define DEF_OP(enum_name, literal, evaluate, differenciate, simplify) case enum_name: evaluate;
             switch(node->data.op)
             {
                 #include "../include/Operators.h"
-                default: LOG("Unknown operator.\n"); return NAN;
+                default:
+                {
+                    LOG("Unknown operator.\n");
+                    return NAN;
+                }
             }
-
 #undef DEF_OP
         }
         case VAR:
@@ -47,8 +52,10 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
         }
         case UND: //fall through
         default:
+        {
             LOG("Unknown node type.\n");
             return NAN;
+        }
     }
 
     return NAN;
@@ -69,13 +76,21 @@ static Node *SubTreeCopy(Node *sub_tree)
                                                     SubTreeCopy(sub_tree->right));
 }
 
-static void SubTreeSize(Node *sub_tree, size_t *size)
+static void SubTreeSizeCounter(Node *sub_tree, size_t *counter)
 {
     if(!sub_tree) return;
-    (*size)++;
+    (*counter)++;
 
-    SubTreeSize(sub_tree->left , size);
-    SubTreeSize(sub_tree->right, size);
+    SubTreeSizeCounter(sub_tree->left , counter);
+    SubTreeSizeCounter(sub_tree->right, counter);
+}
+
+static size_t SubTreeSize(Node *sub_tree)
+{
+    size_t size = 0;
+    SubTreeSizeCounter(sub_tree, &size);
+
+    return size;
 }
 
 
@@ -86,21 +101,33 @@ static Node *SubTreeDerivative(Node *node, const char *const var)
     switch(node->type)
     {
         case VAL:
+        {
             return __VAL(0);
+        }
         case VAR:
-            return __VAL(!strcmp(node->data.var, var));
+        {
+            return __VAL(strcmp(node->data.var, var) == 0);
+        }
         case OP:
         {
-#define DEF_OP(enum, literal, eval, dif, smpl) case enum: dif
+#define DEF_OP(enum_name, literal, evaluate, differenciate, simplify) case enum_name: differenciate;
             switch(node->data.op)
             {
                 #include "../include/Operators.h"
-                default: LOG("Unknown operator.\n"); return NULL;
+                default:
+                {
+                    LOG("Unknown operator.\n");
+                    return NULL;
+                }
             }
 #undef DEF_OP
         }
         case UND: //fall through
-        default: LOG("Unknown node type.\n"); return NULL;
+        default:
+        {
+            LOG("Unknown node type.\n");
+            return NULL;
+        }
     }
 }
 
@@ -108,7 +135,7 @@ Tree Derivative(Tree *const tree, const char *const var)
 {
     TREE_VERIFICATION(tree, {});
 
-    Tree derivative = {NULL, tree->table, 0};
+    Tree derivative = {NULL, tree->table, 1};
 
     if(!VariablesParsing(tree, var))
     {
@@ -117,7 +144,7 @@ Tree Derivative(Tree *const tree, const char *const var)
     else
     {
         derivative.root = SubTreeDerivative(tree->root, var);
-        SubTreeSize(derivative.root, &derivative.size);
+        derivative.size = SubTreeSize(derivative.root);
     }
 
     return derivative;
@@ -144,7 +171,9 @@ static bool SubTreeSearchVar(Node *const node, VariablesTable *table)
             return (!is_constant);
         }
         case VAL:
+        {
             return false;
+        }
         case OP:
         {
             bool find  = SubTreeSearchVar(node->left, table);
@@ -152,7 +181,9 @@ static bool SubTreeSearchVar(Node *const node, VariablesTable *table)
         }
         case UND:
         default:
+        {
             return false;
+        }
     }
 }
 
@@ -173,14 +204,12 @@ static void SubTreeSimplify(Tree *tree, Node *node)
             }
             else
             {
-#define DEF_OP(enum_name, literal, evaluate, differenciate, simplify) case enum: simplify; break;
-
+#define DEF_OP(enum_name, literal, evaluate, differenciate, simplify) case enum_name: simplify; break;
                 switch(node->data.op)
                 {
                     #include "../include/Operators.h"
                     default: LOG("Unknown operator.\n"); return;
                 }
-
 #undef DEF_OP
             }
 
@@ -189,13 +218,10 @@ static void SubTreeSimplify(Tree *tree, Node *node)
                 TreeDtor(tree, node->left);
                 TreeDtor(tree, node->right);
 
-                size_t copy_size = 0;
-                SubTreeSize(copy, &copy_size);
+                tree->size += SubTreeSize(copy) - 1;
 
                 *node = *copy;
                 free(copy);
-
-                tree->size += copy_size - 1;
 
                 SubTreeSimplify(tree, node);
             }
@@ -208,7 +234,11 @@ static void SubTreeSimplify(Tree *tree, Node *node)
             return;
         }
         case UND: //fall through
-        default: LOG("Unknown node type.\n"); return;
+        default:
+        {
+            LOG("Unknown node type.\n");
+            return;
+        }
     }
 }
 

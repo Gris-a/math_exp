@@ -10,12 +10,10 @@ int main(void)
     TREE_DUMP(&tree);
     printf("%lg\n", TreeCalculate(&tree));
     Tree deriv = Derivative(&tree, "x");
-    Tree deriv2 = Derivative(&deriv, "x");
-    TREE_DUMP(&deriv2);
-    TreeSimplify(&deriv2, 10000);
-    TREE_DUMP(&deriv2);
+    TREE_DUMP(&deriv);
+    TreeSimplify(&deriv, 5);
+    TREE_DUMP(&deriv);
     TreeDtor(&tree, tree.root);
-    TreeDtor(&deriv2, deriv2.root);
     TreeDtor(&deriv, deriv.root);
     VarsTableDtor(&table);
 }

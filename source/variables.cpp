@@ -10,8 +10,8 @@ VariablesTable VarsTableCtor(void)
 
     VariablesTable table = {};
 
-    table.vars[0].name = strdup(e);
-    table.vars[1].name = strdup(pi);
+    table.vars[0] = {strdup(e) , M_E};
+    table.vars[1] = {strdup(pi), M_PI};
     table.size = 2;
 
     return table;

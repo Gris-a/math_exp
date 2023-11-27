@@ -13,7 +13,6 @@ static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_na
     {
         if(strcmp(tree->table->vars[i].name, var_name) == 0)
         {
-            if(i < N_CONSTANTS) return UND;
             data->var = tree->table->vars[i].name;
             exists    = true;
             break;
@@ -22,7 +21,7 @@ static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_na
 
     if(!exists)
     {
-        ASSERT(tree->table->size < MAX_VARIABLES, return UND);
+        if(tree->table->size >= MAX_VARIABLES) return UND;
 
         tree->table->vars[tree->table->size].name = strdup(var_name);
         data->var = tree->table->vars[tree->table->size++].name;
@@ -33,11 +32,10 @@ static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_na
 
 static NodeType OperatorsProcessing(data_t *data, const char *op_name)
 {
-#define DEF_OP(enum, literal, eval, dif, smpl) if(strcmp(op_name, literal) == 0)\
-                                               {data->op = enum;} else
+#define DEF_OP(enum_name, literal, ...) if(strcmp(op_name, literal) == 0)\
+                                        {data->op = enum_name;} else
     #include "../include/Operators.h"
     /*else*/ return UND;
-
 #undef DEF_OP
 
     return OP;
@@ -49,11 +47,11 @@ static NodeType ReadData(char **buf, Tree *tree, data_t *data)
     int offset   = 0;
 
     int scaned = 0;
-    scaned = sscanf(*buf, " %lg%n", &data->num, &offset);
+    scaned = sscanf(*buf, " %lg %n", &data->num, &offset);
     if(!scaned)
     {
-        ans                     = OP;
-        char ch                 = 0;
+        ans = OP;
+        char ch = 0;
         char name_buf[BUF_SIZE] = {};
 
         char fmt[BUF_SIZE] = {};
@@ -63,13 +61,19 @@ static NodeType ReadData(char **buf, Tree *tree, data_t *data)
         switch(ch)
         {
             case '(':
+            {
                 ans = OperatorsProcessing(data, name_buf);
                 break;
+            }
             case ')':
+            {
                 ans = VariablesProcessing(tree, data, name_buf);
                 break;
+            }
             default:
+            {
                 return UND;
+            }
         }
     }
 
@@ -134,7 +138,7 @@ static size_t FileSize(const char *file_name)
 
 Tree ReadTree(const char *file_name, VariablesTable *table)
 {
-    FILE *source = fopen(file_name, "rb");
+    FILE *source  = fopen(file_name, "rb");
     size_t file_size = FileSize(file_name);
 
     char *buffer = (char *)calloc(file_size + 1, sizeof(char));
@@ -160,7 +164,6 @@ static Node *SubTreeSearchParent(Node *const node, Node *const search_node)
             node->right == search_node) return node;
 
     Node *find  = SubTreeSearchParent(node->left , search_node);
-
     return (find ? find : SubTreeSearchParent(node->right, search_node));
 }
 
@@ -178,6 +181,7 @@ static void SubTreeDtor(Tree *tree, Node *sub_tree)
 int TreeDtor(Tree *tree, Node *root)
 {
     TREE_VERIFICATION(tree, EXIT_FAILURE);
+    if(!root) return EXIT_SUCCESS;
 
     if(root->left)
     {
@@ -197,6 +201,7 @@ int TreeDtor(Tree *tree, Node *root)
     else
     {
         Node *parent = SubTreeSearchParent(tree->root, root);
+
         if(parent->left == root) parent->left  = NULL;
         else                     parent->right = NULL;
     }
@@ -211,7 +216,6 @@ int TreeDtor(Tree *tree, Node *root)
 Node *NodeCtor(const data_t val, const NodeType type, Node *const left, Node *const right)
 {
     Node *node = (Node *)calloc(1, sizeof(Node));
-    ASSERT(node, return NULL);
 
     node->type  = type;
     node->data  = val;
@@ -226,6 +230,7 @@ int NodeDtor(Node *node)
 {
     ASSERT(node, return EXIT_FAILURE);
     free(node);
+
     return EXIT_SUCCESS;
 }
 
@@ -234,27 +239,35 @@ static void NodeDataDump(FILE *dump_file, Node *const node)
 {
     switch(node->type)
     {
-        case OP:
-            switch(node->data.op)
-            {
-#define DEF_OP(enum, literal, eval, dif, smpl) case enum: fprintf(dump_file, literal);\
-                                                          return;
-                #include "../include/Operators.h"
-                default:
-                    fprintf(dump_file, "?");
-                    return;
-#undef DEF_OP
-            }
         case VAL:
+        {
             fprintf(dump_file, "%lg", node->data.num);
             return;
+        }
         case VAR:
+        {
             fprintf(dump_file, "%s", node->data.var);
             return;
+        }
+        case OP:
+#define DEF_OP(enum_name, literal, ...) case enum_name: fprintf(dump_file, literal);\
+                                        return;
+            switch(node->data.op)
+            {
+                #include "../include/Operators.h"
+                default:
+                {
+                    fprintf(dump_file, "?");
+                    return;
+                }
+            }
+#undef DEF_OP
         case UND: //fall through
         default:
+        {
             fprintf(dump_file, "<unknown type>");
             return;
+        }
     }
 }
 
@@ -302,17 +315,25 @@ static void DotNodeCtor(Node *const node, FILE *dot_file)
     switch(node->type)
     {
         case VAL:
+        {
             fprintf(dot_file , "\"coral\"];");
             break;
+        }
         case OP:
+        {
             fprintf(dot_file , "\"orange\"];");
             break;
+        }
         case VAR:
+        {
             fprintf(dot_file , "\"bisque\"];");
             break;
+        }
         case UND: //fall through
         default:
+        {
             fprintf(dot_file , "\"red\"];");
+        }
     }
 }
 
