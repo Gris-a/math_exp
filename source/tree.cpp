@@ -32,8 +32,8 @@ static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_na
 
 static NodeType OperatorsProcessing(data_t *data, const char *op_name)
 {
-#define DEF_OP(enum_name, literal, ...) if(strcmp(op_name, literal) == 0)\
-                                        {data->op = enum_name;} else
+#define DEF_OP(e_name, e_code, dump, ...) if(strcmp(op_name, dump) == 0)\
+                                          {data->op = e_name;} else
     #include "../include/Operators.h"
     /*else*/ return UND;
 #undef DEF_OP
@@ -250,14 +250,14 @@ static void NodeDataDump(FILE *dump_file, Node *const node)
             return;
         }
         case OP:
-#define DEF_OP(enum_name, literal, ...) case enum_name: fprintf(dump_file, literal);\
-                                        return;
+#define DEF_OP(e_name, e_code, dump, ...) case e_name: {fprintf(dump_file, dump);\
+                                          return;}
             switch(node->data.op)
             {
                 #include "../include/Operators.h"
                 default:
                 {
-                    fprintf(dump_file, "?");
+                    fprintf(dump_file, "<unknown operator>");
                     return;
                 }
             }
@@ -271,15 +271,36 @@ static void NodeDataDump(FILE *dump_file, Node *const node)
     }
 }
 
-static void SubTreeTextDump(Node *const node)
+static bool OpCmp(const Operator parent_op, const Operator node_op, const bool is_l_child)
+{
+#define DEF_OP(e_name, e_code, dump, tex, eval, diff, simp, op_cmp) case e_name: {op_cmp;}
+    switch(parent_op)
+    {
+        #include "../include/Operators.h"
+        default: return true;
+    }
+#undef DEF_OP
+}
+
+static void SubTreeTextDump(Node *const node, Node *const parent = NULL)
 {
     if(!node) return;
 
-    LOG("(");
-    SubTreeTextDump(node->left);
+    bool brackets = false;
+    if(parent && parent->type == OP)
+    {
+        if(IS_FUNC(parent->data.op) ||
+          ((node->type == OP) && OpCmp(parent->data.op, node->data.op, parent->left == node)))
+        {
+            brackets = true;
+        }
+    }
+
+    if(brackets) LOG("(");
+    SubTreeTextDump(node->left, node);
     NodeDataDump(LOG_FILE, node);
-    SubTreeTextDump(node->right);
-    LOG(")");
+    SubTreeTextDump(node->right, node);
+    if(brackets) LOG(")");
 }
 
 static void TreeTextDump(Tree *const tree)

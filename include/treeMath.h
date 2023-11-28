@@ -4,7 +4,9 @@
 #include "log.h"
 #include "tree.h"
 
-const double M_ERR = 1e-10;
+const double M_ERR = 1e-20;
+
+int TreeTex(Tree *const tree, FILE *tex_file);
 
 double TreeCalculate(Tree *const tree);
 

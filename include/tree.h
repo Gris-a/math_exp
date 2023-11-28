@@ -8,7 +8,10 @@
 
 const size_t BUF_SIZE = 1000;
 
-#define DEF_OP(enum, literal, eval, dif, smpl) enum,
+#define IS_FUNC(operator)   (operator & 1)
+#define IS_PREFIX(operator) ((operator >> 1) & 1)
+
+#define DEF_OP(enum_name, enum_code, ...) enum_name = enum_code,
 enum Operator
 {
     #include "../include/Operators.h"
