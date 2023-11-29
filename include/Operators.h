@@ -1,7 +1,7 @@
 /*
 
 
-DEF_OP(enum_name, (((enum_code << 1) + is_prefix_tex) << 1) + is_function, literal, tex_literal,
+DEF_OP(enum_name, (((enum_code << 1) + is_prefix_tex) << 1) + is_function, literal, tex_literal, plot_literal,
 {
     evaluate
 },

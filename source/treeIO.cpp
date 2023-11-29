@@ -206,6 +206,14 @@ static bool NeedBrackets(Node *const parent, Node *const node)
                       ((node->type == OP) && OpCmp(parent->data.op, node->data.op, (parent->left == node))));
 }
 
+static bool NeedCurlyBrackets(Node *const parent, Node *const node)
+{
+    return (parent && ((parent->data.op == DIV) || ((parent->data.op == POW) && (parent->right == node))));
+}
+
+
+
+
 
 #define DEF_OP(e_name, e_code, dump, ...) case e_name: {fprintf(dump_file, dump);\
                                           return;}
@@ -246,6 +254,42 @@ static void NodeDataDump(FILE *dump_file, Node *const node)
 #define DEF_OP(e_name, e_code, dump, tex, ...) case e_name: {fprintf(tex_file, tex);\
                                                return;}
 static void NodeDataTex(FILE *tex_file, Node *const node)
+{
+    switch(node->type)
+    {
+        case VAL:
+        {
+            fprintf(tex_file, "%lg", node->data.num);
+            return;
+        }
+        case VAR:
+        {
+            fprintf(tex_file, "%s", node->data.var);
+            return;
+        }
+        case OP:
+            switch(node->data.op)
+            {
+                #include "../include/Operators.h"
+                default:
+                {
+                    fprintf(tex_file, "<unknown operator>");
+                    return;
+                }
+            }
+        case UND: //fall through
+        default:
+        {
+            fprintf(tex_file, "<unknown type>");
+            return;
+        }
+    }
+}
+#undef DEF_OP
+
+#define DEF_OP(e_name, e_code, dump, tex, plot, ...) case e_name: {fprintf(tex_file, plot);\
+                                               return;}
+static void NodeDataPlot(FILE *tex_file, Node *const node)
 {
     switch(node->type)
     {
@@ -323,10 +367,8 @@ void TreeTextDump(Tree *const tree, FILE *dump_file)
 }
 
 
-static bool NeedCurlyBrackets(Node *const parent, Node *const node)
-{
-    return (parent && ((parent->data.op == DIV) || ((parent->data.op == POW) && (parent->right == node))));
-}
+
+
 
 static void TexPrefix(Node *const node, FILE *tex_file)
 {
@@ -486,3 +528,50 @@ void TreeDot(Tree *const tree, const char *png_file_name)
 }
 
 
+
+
+static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent = NULL)
+{
+    if(!node) return;
+
+    bool brackets = NeedBrackets(parent, node);
+
+    if(brackets) fprintf(plot_script, "(");
+
+    SubTreePlot(plot_script, node->left, node);
+    NodeDataPlot(plot_script, node);
+    SubTreePlot(plot_script, node->right, node);
+
+    if(brackets) fprintf(plot_script, ")");
+}
+
+static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound)
+{
+    static int num = 0;
+    fprintf(plot_script, "#! /usr/bin/gnuplot -persist\n"
+                         "set xlabel \"X\"\n"
+                         "set ylabel \"Y\"\n"
+                         "set grid\n"
+                         "set xrange[%lf:%lf]\n"
+                         "set output \"plot%d.png\"\n"
+                         "plot ", lx_bound, rx_bound, num);
+    num++;
+}
+
+int TreePlot(Tree *tree, const double lx_bound, const double rx_bound)
+{
+    TREE_VERIFICATION(tree, EXIT_FAILURE);
+
+    FILE *plot_script = fopen("plot.gpi", "w");
+
+    PlotGeneral(plot_script, lx_bound, rx_bound);
+    SubTreePlot(plot_script, tree->root);
+
+    fclose(plot_script);
+
+    system("chmod +x plot.gpi");
+    system("./plot.gpi");
+    // remove("plot.gpi");
+
+    return EXIT_SUCCESS;
+}

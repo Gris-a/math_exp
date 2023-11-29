@@ -17,4 +17,8 @@ void TexExprEnd(FILE *tex_file);
 
 int TreeTex(Tree *const tree, FILE *tex_file);
 
+void PlotImg(const char *file_name);
+
+int TreePlot(Tree *tree, const double lx_bound, const double rx_bound);
+
 #endif //TREE_I_O_H
