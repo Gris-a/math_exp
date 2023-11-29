@@ -6,8 +6,6 @@
 #include "log.h"
 #include "variables.h"
 
-const size_t BUF_SIZE = 1000;
-
 #define IS_FUNC(operator)   (operator & 1)
 #define IS_PREFIX(operator) ((operator >> 1) & 1)
 
@@ -64,13 +62,15 @@ struct Tree
 #define TREE_VERIFICATION(tree_ptr, ...)
 #endif
 
-Tree ReadTree(const char *file_name, VariablesTable *table);
-
 int TreeDtor(Tree *tree, Node *root);
 
 Node *NodeCtor(const data_t val, const NodeType type, Node *const left = NULL, Node *const right = NULL);
 
 int NodeDtor(Node *node);
+
+Node *SubTreeCopy(Node *sub_tree);
+
+size_t SubTreeSize(Node *sub_tree);
 
 void TreeDump(Tree *tree, const char *func, const int line);
 

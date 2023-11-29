@@ -28,8 +28,6 @@ FILE *OpenLog(void)
 
 void CloseLog(void)
 {
-    fflush(LOG_FILE);
-
     fclose(LOG_FILE);
 }
 

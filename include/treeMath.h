@@ -6,12 +6,14 @@
 
 const double M_ERR = 1e-20;
 
-int TreeTex(Tree *const tree, FILE *tex_file);
+void FillVariables(VariablesTable *table);
 
 double TreeCalculate(Tree *const tree);
 
-Tree Derivative(Tree *const tree, const char *const var);
+Tree Derivative(Tree *const tree, const char *const var, FILE *file = NULL);
 
-int TreeSimplify(Tree *tree, size_t n_iter);
+Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const size_t n);
+
+int TreeSimplify(Tree *tree, FILE *file = NULL);
 
 #endif //TREE_MATH_H
