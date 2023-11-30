@@ -7,6 +7,7 @@
 #include "../include/MathDSL.h"
 
 
+static double FastPow(double a, long long power);
 static Variable *VariablesParsing(Tree *const tree, const char *const var);
 static double SubTreeCalculate(Tree *const tree, Node *const node);
 
@@ -69,6 +70,20 @@ static Variable *VariablesParsing(Tree *const tree, const char *const var)
     return NULL;
 }
 
+
+static double FastPow(double a, long long power)
+{
+    if(power == 1) return a;
+
+    if(power % 2 == 0)
+    {
+        return FastPow(a * a, power / 2);
+    }
+    else
+    {
+        return a * FastPow(a, power - 1);
+    }
+}
 #define DEF_OP(e_name, e_code, dump, tex, plot, eval, ...) case e_name: eval
 static double SubTreeCalculate(Tree *const tree, Node *const node)
 {
@@ -188,35 +203,37 @@ Tree Derivative(Tree *const tree, const char *const var, FILE *file)
 
     Tree derivative = {NULL, tree->table, 1};
 
+    if(file)
+    {
+        fprintf(file, "\\section{Дифференцирование}\n");
+        fprintf(file, "Продифференцируем выражение:\n");
+        TreeTex(tree, file);
+    }
+
     if(!VariablesParsing(tree, var))
     {
         derivative.root = NodeCtor({}, VAL);
     }
     else
     {
-        if(file)
-        {
-            fprintf(file, "\\section{Дифференцирование}\n");
-            fprintf(file, "Продифференцируем выражение:\n");
-            TreeTex(tree, file);
-        }
 
         derivative.root = SubTreeDerivative(tree->root, var, file);
         derivative.size = SubTreeSize(derivative.root);
 
-        if(file)
-        {
-            fprintf(file, "Значит:\n");
+    }
 
-            TexExprBegin(file);
+    if(file)
+    {
+        fprintf(file, "Значит:\n");
 
-            fputc('(', file);
-            SubTreeTex(tree->root, file);
-            fprintf(file, ")\' = ");
-            SubTreeTex(derivative.root, file);
+        TexExprBegin(file);
 
-            TexExprEnd(file);
-        }
+        fputc('(', file);
+        SubTreeTex(tree->root, file);
+        fprintf(file, ")\' = ");
+        SubTreeTex(derivative.root, file);
+
+        TexExprEnd(file);
     }
 
     return derivative;
