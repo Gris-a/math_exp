@@ -85,7 +85,7 @@ static double FastPow(double a, long long power)
     }
 }
 
-#define DEF_OP(e_name, e_code, dump, tex, plot, eval, ...) case e_name: eval
+#define DEF_OP(enum_name, e_code, dump, tex, plot, evaluate, ...) case enum_name: evaluate
 static double SubTreeCalculate(Tree *const tree, Node *const node)
 {
     if(!node) return NAN;
@@ -95,6 +95,13 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
         case VAL:
         {
             return node->data.num;
+        }
+        case VAR:
+        {
+            Variable *var = VariablesParsing(tree, node->data.var);
+            ASSERT(var, return NAN);
+
+            return var->val;
         }
         case OP:
         {
@@ -110,13 +117,6 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
                     return NAN;
                 }
             }
-        }
-        case VAR:
-        {
-            Variable *var = VariablesParsing(tree, node->data.var);
-            ASSERT(var, return NAN);
-
-            return var->val;
         }
         case UND: //fall through
         default:
@@ -141,7 +141,7 @@ double TreeCalculate(Tree *const tree)
 }
 
 
-#define DEF_OP(e_name, e_code, dump, tex, plot, eval, diff, simp, ...) case e_name: diff
+#define DEF_OP(enum_name, e_code, dump, tex, plot, eval, differentiate, simp, ...) case enum_name: differentiate
 static Node *SubTreeDerivative(Node *node, const char *const var, FILE *file)
 {
     ASSERT(node, return NULL);
@@ -315,7 +315,7 @@ static bool SubTreeSearchVar(Node *const node, VariablesTable *table)
     return false;
 }
 
-#define DEF_OP(e_name, e_code, dump, tex, plot, eval, diff, simp, op_cmp) case e_name: simp
+#define DEF_OP(enum_name, e_code, dump, tex, plot, eval, diff, simplify, op_cmp) case enum_name: simplify
 static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes)
 {
     if(!node) return;

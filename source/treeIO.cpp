@@ -59,8 +59,9 @@ static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_na
     return VAR;
 }
 
-#define DEF_OP(e_name, e_code, dump, ...) if(strcmp(op_name, dump) == 0)\
-                                          {data->op = e_name;} else
+#define DEF_OP(enum_name, e_code, literal, ...) if(strcmp(op_name, literal) == 0)\
+                                             {data->op = enum_name;}\
+                                             else
 static NodeType OperatorsProcessing(data_t *data, const char *op_name)
 {
     #include "../include/Operators.h"
@@ -191,7 +192,7 @@ Tree ReadTree(const char *file_name, VariablesTable *table)
 
 
 
-#define DEF_OP(e_name, e_code, dump, tex, plot, eval, diff, simp, op_cmp) case e_name: op_cmp;
+#define DEF_OP(enum_name, e_code, dump, tex, plot, eval, diff, simp, op_compare) case enum_name: op_compare;
 static bool OpCmp(const Operator parent_op, const Operator node_op, const bool is_l_child)
 {
     switch(parent_op)
@@ -217,7 +218,7 @@ static bool NeedCurlyBrackets(Node *const parent, Node *const node)
 
 
 
-#define DEF_OP(e_name, e_code, dump, ...) case e_name: {fprintf(dump_file, dump);\
+#define DEF_OP(enum_name, e_code, dump, ...) case enum_name: {fprintf(dump_file, dump);\
                                           return;}
 static void NodeDataDump(FILE *dump_file, Node *const node)
 {
@@ -253,7 +254,7 @@ static void NodeDataDump(FILE *dump_file, Node *const node)
 }
 #undef DEF_OP
 
-#define DEF_OP(e_name, e_code, dump, tex, ...) case e_name: {fprintf(tex_file, tex);\
+#define DEF_OP(enum_name, e_code, dump, tex, ...) case enum_name: {fprintf(tex_file, tex);\
                                                return;}
 static void NodeDataTex(FILE *tex_file, Node *const node)
 {
@@ -289,7 +290,7 @@ static void NodeDataTex(FILE *tex_file, Node *const node)
 }
 #undef DEF_OP
 
-#define DEF_OP(e_name, e_code, dump, tex, plot, ...) case e_name: {fprintf(tex_file, plot);\
+#define DEF_OP(enum_name, e_code, dump, tex, plot, ...) case enum_name: {fprintf(tex_file, plot);\
                                                return;}
 static void NodeDataPlot(FILE *tex_file, Node *const node)
 {
