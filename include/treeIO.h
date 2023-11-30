@@ -17,8 +17,6 @@ void TexExprEnd(FILE *tex_file);
 
 int TreeTex(Tree *const tree, FILE *tex_file);
 
-void PlotImg(const char *file_name);
-
-int TreePlot(Tree *tree, const double lx_bound, const double rx_bound);
-
+//variadic arguments is Tree * to plot and char * title of expression
+int TreePlot(const double lx_bound, const double rx_bound, char *plot_name, const unsigned num_expr, ...);
 #endif //TREE_I_O_H

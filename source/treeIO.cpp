@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdarg.h>
 
 #include "../include/treeIO.h"
 
@@ -545,33 +546,61 @@ static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent 
     if(brackets) fprintf(plot_script, ")");
 }
 
-static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound)
+static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, char *plot_name)
 {
     static int num = 0;
+
+    bool is_name_generated = false;
+    if(!plot_name)
+    {
+        asprintf(&plot_name, "plot/plot%d.png", num);
+        is_name_generated = true;
+    }
+
     fprintf(plot_script, "#! /usr/bin/gnuplot -persist\n"
                          "set xlabel \"X\"\n"
                          "set ylabel \"Y\"\n"
                          "set grid\n"
+                         "set terminal png size 1920,1080 lw 3 font \"Times new roman, 30\"\n"
+                         "set output '%s'\n"
                          "set xrange[%lf:%lf]\n"
-                         "set output \"plot%d.png\"\n"
-                         "plot ", lx_bound, rx_bound, num);
+                         "plot ", plot_name, lx_bound, rx_bound);
+    if(is_name_generated)
+    {
+        free(plot_name);
+    }
     num++;
 }
 
-int TreePlot(Tree *tree, const double lx_bound, const double rx_bound)
+int TreePlot(const double lx_bound, const double rx_bound, char *plot_name, const unsigned num_expr, ...)
 {
-    TREE_VERIFICATION(tree, EXIT_FAILURE);
+    va_list expressions = {};
+    va_start(expressions, rx_bound);
 
     FILE *plot_script = fopen("plot.gpi", "w");
+    PlotGeneral(plot_script, lx_bound, rx_bound, plot_name);
 
-    PlotGeneral(plot_script, lx_bound, rx_bound);
-    SubTreePlot(plot_script, tree->root);
+    Tree *tree = NULL;
+    char *title = NULL;
+    for(unsigned i = 1; i <= num_expr; i++)
+    {
+        tree  = va_arg(expressions, Tree *);
+        title = va_arg(expressions, char *);
+
+        TREE_VERIFICATION(tree, EXIT_FAILURE);
+        SubTreePlot(plot_script, tree->root);
+
+        if(title)        fprintf(plot_script, " title \"%s\"", title);
+        if(i != num_expr)fprintf(plot_script, ", ");
+    }
+
+    va_end(expressions);
 
     fclose(plot_script);
 
     system("chmod +x plot.gpi");
     system("./plot.gpi");
-    // remove("plot.gpi");
+    remove("plot.gpi");
 
     return EXIT_SUCCESS;
 }

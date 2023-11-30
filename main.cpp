@@ -17,7 +17,7 @@ int main(void)
     TreeSimplify(&deriv, TeX_file);
 
     //Taylor
-    Tree Taylor = TaylorSeries(&tree, "x", 0, 10);
+    Tree Taylor = TaylorSeries(&tree, "x", 0, 3);
     TreeSimplify(&Taylor);
     TreeTex(&Taylor, TeX_file);
 
@@ -25,7 +25,7 @@ int main(void)
     difference.root = NodeCtor({SUB}, OP, tree.root, Taylor.root);
     difference.table = tree.table;
     difference.size = 1 + tree.size + Taylor.size;
-    TreePlot(&difference, -2, 2);
+    TreePlot(-2, 2, "plot/aboba.png", 3, &difference, "Difference", &tree, "Function", &Taylor, "Taylor");
 
 
 
