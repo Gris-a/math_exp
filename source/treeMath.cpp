@@ -70,10 +70,10 @@ static Variable *VariablesParsing(Tree *const tree, const char *const var)
     return NULL;
 }
 
-
 static double FastPow(double a, long long power)
 {
     if(power == 1) return a;
+    if(power == 0) return 1;
 
     if(power % 2 == 0)
     {
@@ -84,6 +84,7 @@ static double FastPow(double a, long long power)
         return a * FastPow(a, power - 1);
     }
 }
+
 #define DEF_OP(e_name, e_code, dump, tex, plot, eval, ...) case e_name: eval
 static double SubTreeCalculate(Tree *const tree, Node *const node)
 {
@@ -244,28 +245,27 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
 {
     TREE_VERIFICATION(expr, {});
 
-    Tree Taylor = {__VAL(TreeCalculate(expr)), expr->table, 1};
-
-    Variable *var = VariablesParsing(expr, var_name);
-    if(!var) return Taylor;
+    Variable *var   = VariablesParsing(expr, var_name);
+    if(!var) return {__VAL(TREE_EVAL(expr)), expr->table, 1};
 
     double val_prev = var->val;
     var->val        = point;
+    Tree Taylor     = {__VAL(TREE_EVAL(expr)), expr->table, 1};
 
     Tree temp      = {};
-    Tree tempDiffn = {SubTreeCopy(expr->root), expr->table, expr->size};
+    Tree tempDiffn = {CPY(expr->root), expr->table, expr->size};
 
-    const size_t SizeDiff = 8;
-    size_t factorial      = 1;
+    const size_t size_diff = 8;
+    size_t factorial       = 1;
 
     for(size_t power = 1; power <= n; power++)
     {
         factorial *= power;
         temp = Derivative(&tempDiffn, var_name);
 
-        Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TreeCalculate(&temp) / (double)factorial),
+        Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TREE_EVAL(&temp) / (double)factorial),
                                                __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
-        Taylor.size += SizeDiff;
+        Taylor.size += size_diff;
 
         TreeDtor(&tempDiffn, tempDiffn.root);
         tempDiffn = temp;

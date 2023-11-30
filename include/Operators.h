@@ -160,7 +160,14 @@ DEF_OP(POW, (((4 << 1) + 0) << 1) + 0, "^", " ^ ", "**",
 {
     if(DBL_EQ(calc_right, round(calc_right)))
     {
-        return FastPow(calc_left, (long long)round(calc_right));
+        if(calc_right > 0)
+        {
+            return FastPow(calc_left, (long long)round(calc_right));
+        }
+        else
+        {
+            return 1 / FastPow(calc_left, -(long long)round(calc_right));
+        }
     }
     else
     {

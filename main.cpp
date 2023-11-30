@@ -15,27 +15,32 @@ int main(void)
 
     //diff
     Tree deriv = Derivative(&tree, "x", TeX_file);
+    TREE_DUMP(&deriv);
     TreeSimplify(&deriv, TeX_file);
+    TREE_DUMP(&deriv);
+
+    double point = 1;
 
     //Taylor
-    Tree Taylor1 = TaylorSeries(&tree, "x", 0, 1);
+    Tree Taylor1 = TaylorSeries(&tree, "x", point, 1);
     TreeSimplify(&Taylor1);
-    Tree Taylor2 = TaylorSeries(&tree, "x", 0, 2);
+    Tree Taylor2 = TaylorSeries(&tree, "x", point, 2);
     TreeSimplify(&Taylor2);
-    Tree Taylor3 = TaylorSeries(&tree, "x", 0, 3);
+    Tree Taylor3 = TaylorSeries(&tree, "x", point, 3);
     TreeSimplify(&Taylor3);
-    Tree Taylor4 = TaylorSeries(&tree, "x", 0, 4);
+    Tree Taylor4 = TaylorSeries(&tree, "x", point, 4);
     TreeSimplify(&Taylor4);
-    Tree Taylor5 = TaylorSeries(&tree, "x", 0, 5);
+    Tree Taylor5 = TaylorSeries(&tree, "x", point, 5);
     TreeSimplify(&Taylor5);
 
 
-    TreePlot(-2, 2, "plot/gplot.png", 6, &tree, "Function",
-                                         &Taylor1, "o(x)",
-                                         &Taylor2, "o(x^2)",
-                                         &Taylor3, "o(x^3)",
-                                         &Taylor4, "o(x^4)",
-                                         &Taylor5, "o(x^5)");
+    TreePlot(0, 3,
+             0, 10, NULL, 6, &tree   , "Function",
+                                 &Taylor1, "o((x - 1))",
+                                 &Taylor2, "o((x - 1)^2)",
+                                 &Taylor3, "o((x - 1)^3)",
+                                 &Taylor4, "o((x - 1)^4)",
+                                 &Taylor5, "o((x - 1)^5)");
 
 
 

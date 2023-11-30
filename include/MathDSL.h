@@ -10,6 +10,7 @@
 #define OP_T(type)  (type == OP)
 
 #define CALC(node) SubTreeCalculate(tree, node)
+#define TREE_EVAL(tree) TreeCalculate(tree)
 
 #define DBL_EQ(dbl1, dbl2) (abs(dbl1 - dbl2) < M_ERR)
 #define VAR_EQ(var1, var2) (strcmp(var1, var2) == 0)

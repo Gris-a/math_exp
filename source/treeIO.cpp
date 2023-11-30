@@ -31,7 +31,7 @@ static void DotSubTreeCtor(Node *const node, Node *const node_next, const char *
 static void DotTreeGeneral(Tree *const tree, FILE *dot_file);
 
 static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent = NULL);
-static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, char *plot_name);
+static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name);
 
 
 
@@ -547,7 +547,7 @@ static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent)
     if(brackets) fprintf(plot_script, ")");
 }
 
-static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, char *plot_name)
+static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name)
 {
     static int num = 0;
 
@@ -565,7 +565,8 @@ static void PlotGeneral(FILE *plot_script, const double lx_bound, const double r
                          "set terminal png size 1920,1080 lw 3 font \"Times new roman, 30\"\n"
                          "set output '%s'\n"
                          "set xrange[%lf:%lf]\n"
-                         "plot ", plot_name, lx_bound, rx_bound);
+                         "set yrange[%lf:%lf]\n"
+                         "plot ", plot_name, lx_bound, rx_bound, ly_bound, ry_bound);
     if(is_name_generated)
     {
         free(plot_name);
@@ -573,13 +574,13 @@ static void PlotGeneral(FILE *plot_script, const double lx_bound, const double r
     num++;
 }
 
-int TreePlot(const double lx_bound, const double rx_bound, char *plot_name, const unsigned num_expr, ...)
+int TreePlot(const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name, const unsigned num_expr, ...)
 {
     va_list expressions = {};
     va_start(expressions, rx_bound);
 
     FILE *plot_script = fopen("plot.gpi", "w");
-    PlotGeneral(plot_script, lx_bound, rx_bound, plot_name);
+    PlotGeneral(plot_script, lx_bound, rx_bound, ly_bound, ry_bound,  plot_name);
 
     Tree *tree = NULL;
     char *title = NULL;
