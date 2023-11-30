@@ -15,6 +15,7 @@ static Node *SubTreeDerivative(Node *node, const char *const var, FILE *tex);
 static bool SubTreeSearchVar(Node *const node, VariablesTable *table);
 static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes);
 
+static void PrintRandMessage(FILE *file);
 
 static const char *Phrases[] = {"Очевидно, что:",
                                 "Несложно заметить, что:",
@@ -22,7 +23,21 @@ static const char *Phrases[] = {"Очевидно, что:",
                                 "Это невероятно, но:",
                                 "Если этот переход не очевиден, то лучше иди потрогай траву:",
                                 "Надеюсь, вас не шокирует, что:",
-                                "Следующий переход из серии \'коротко, просто, но не понятно\':"};
+                                "Следующий переход из серии \'коротко, просто, но не понятно\':",
+
+                                "Первое правило Бойцовского клуба: никому не рассказывать о Бойцовском клубе.\\\\\n"
+                                "Второе правило Бойцовского клуба: никому не рассказывать о Бойцовском клубе.\\\\\n"
+                                "Третье правило Бойцовского клуба: боец крикнул — «хватит», выдохся, отрубился — бой окончен.\\\\\n"
+                                "Четвертое: дерутся только двое.\\\\\n"
+                                "Пятое: по поединку за раз.\\\\\n"
+                                "Шестое правило: снять обувь, рубашки.\\\\\n"
+                                "Седьмое правило Бойцовского клуба: поединок во времени не ограничен.\\\\\n"
+                                "Восьмое и последнее правило: если ты в клубе впервые — принимаешь бой."};
+
+static void PrintRandMessage(FILE *file)
+{
+    fprintf(file, "%s\n", Phrases[rand() % (int)(sizeof(Phrases) / sizeof(char *))]);
+}
 
 
 void FillVariables(VariablesTable *table)
@@ -151,13 +166,15 @@ static Node *SubTreeDerivative(Node *node, const char *const var, FILE *file)
 
     if(file)
     {
-        fprintf(file, "%s\n", Phrases[rand() % (int)(sizeof(Phrases) / sizeof(char *))]);
+        PrintRandMessage(file);
 
         TexExprBegin(file);
+
         fputc('(', file);
         SubTreeTex(node, file);
         fprintf(file, ")\' = ");
         SubTreeTex(ans, file);
+
         TexExprEnd(file);
     }
 
@@ -179,6 +196,7 @@ Tree Derivative(Tree *const tree, const char *const var, FILE *file)
     {
         if(file)
         {
+            fprintf(file, "\\section{Дифференцирование}\n");
             fprintf(file, "Продифференцируем выражение:\n");
             TreeTex(tree, file);
         }
@@ -189,11 +207,14 @@ Tree Derivative(Tree *const tree, const char *const var, FILE *file)
         if(file)
         {
             fprintf(file, "Значит:\n");
+
             TexExprBegin(file);
+
             fputc('(', file);
             SubTreeTex(tree->root, file);
             fprintf(file, ")\' = ");
             SubTreeTex(derivative.root, file);
+
             TexExprEnd(file);
         }
     }
@@ -212,19 +233,22 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
     if(!var) return Taylor;
 
     double val_prev = var->val;
-    var->val       = point;
-    size_t factorial = 1;
+    var->val        = point;
 
     Tree temp      = {};
     Tree tempDiffn = {SubTreeCopy(expr->root), expr->table, expr->size};
 
-    for(size_t i = 1; i <= n; i++)
+    const size_t SizeDiff = 8;
+    size_t factorial      = 1;
+
+    for(size_t power = 1; power <= n; power++)
     {
-        factorial *= i;
+        factorial *= power;
         temp = Derivative(&tempDiffn, var_name);
 
-        Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TreeCalculate(&temp) / (double)factorial), __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)i))));
-        Taylor.size += 8;
+        Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TreeCalculate(&temp) / (double)factorial),
+                                               __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
+        Taylor.size += SizeDiff;
 
         TreeDtor(&tempDiffn, tempDiffn.root);
         tempDiffn = temp;
@@ -304,12 +328,14 @@ static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes)
                 *changes = true;
                 if(file)
                 {
-                    fprintf(file, "%s\n", Phrases[rand() % (int)(sizeof(Phrases) / sizeof(char *))]);
+                    PrintRandMessage(file);
 
                     TexExprBegin(file);
+
                     SubTreeTex(node, file);
                     fprintf(file, " = ");
                     SubTreeTex(copy, file);
+
                     TexExprEnd(file);
                 }
 
@@ -348,6 +374,7 @@ int TreeSimplify(Tree *tree, FILE *file)
 
     if(file)
     {
+        fprintf(file, "\\section{Упрощение}\n");
         fprintf(file, "Упростим выражение:\n");
         TreeTex(tree, file);
     }

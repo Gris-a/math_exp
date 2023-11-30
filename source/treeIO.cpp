@@ -30,7 +30,8 @@ static void DotNodeCtor(Node *const node, FILE *dot_file);
 static void DotSubTreeCtor(Node *const node, Node *const node_next, const char *const direction, FILE *dot_file);
 static void DotTreeGeneral(Tree *const tree, FILE *dot_file);
 
-
+static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent = NULL);
+static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, char *plot_name);
 
 
 
@@ -531,7 +532,7 @@ void TreeDot(Tree *const tree, const char *png_file_name)
 
 
 
-static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent = NULL)
+static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent)
 {
     if(!node) return;
 

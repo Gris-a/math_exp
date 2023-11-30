@@ -267,7 +267,7 @@ DEF_OP(TG, (((8 << 1) + 1) << 1) + 1, "tg", "\\tan", "tan",
     break;
 },
 {
-    if(OP_T(RIGHT->type) && RIGHT->data.op == ATG )
+    if(OP_T(RIGHT->type) && RIGHT->data.op == ATG)
     {
         copy = CPY(RIGHT->right);
     }
