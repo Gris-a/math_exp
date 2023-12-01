@@ -19,7 +19,13 @@ static Node *SubTreeSearchParent(Node *const node, Node *const search_node)
             node->right == search_node) return node;
 
     Node *find  = SubTreeSearchParent(node->left , search_node);
-    return (find ? find : SubTreeSearchParent(node->right, search_node));
+
+    if(find == NULL)
+    {
+        find = SubTreeSearchParent(node->right, search_node);
+    }
+
+    return find;
 }
 
 static void SubTreeDtor(Tree *tree, Node *sub_tree)
@@ -100,6 +106,21 @@ Node *SubTreeCopy(Node *sub_tree)
 }
 
 
+Tree TreeDif(Tree *tree1, Tree *tree2)
+{
+    TREE_VERIFICATION(tree1, {});
+    TREE_VERIFICATION(tree2, {});
+
+    Tree result = {};
+
+    result.root = NodeCtor({SUB}, OP, SubTreeCopy(tree1->root), SubTreeCopy(tree2->root));
+    result.table = tree1->table;
+    result.size = tree1->size + tree2->size + 1;
+
+    return result;
+}
+
+
 static void SubTreeSizeCounter(Node *sub_tree, size_t *counter)
 {
     if(!sub_tree) return;
@@ -150,17 +171,7 @@ static void TreeValidation(Tree *const tree, Node *const node, size_t *counter)
     if(node->type == VAR)
     {
         ASSERT(node->data.var, return);
-
-        bool in_table = false;
-        for(size_t i = 0; i < tree->table->size; i++)
-        {
-            if(strcmp(tree->table->vars[i].name, node->data.var) == 0)
-            {
-                in_table = true;
-                break;
-            }
-        }
-        ASSERT(in_table, return);
+        ASSERT(VariablesParsing(tree->table, node->data.var), return);
     }
 
     if(node->type != OP)

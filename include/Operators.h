@@ -6,7 +6,7 @@ DEF_OP(enum_name, (((enum_code << 1) + is_prefix_tex) << 1) + is_function, liter
     evaluate
 },
 {
-    differenciate
+    __DIFferenciate
 },
 {
     simplify
@@ -16,27 +16,26 @@ DEF_OP(enum_name, (((enum_code << 1) + is_prefix_tex) << 1) + is_function, liter
 })
 */
 
-
 DEF_OP(ADD, (((0 << 1) + 0) << 1) + 0, "+", " + ", "+",
 {
-    return calc_left + calc_right;
+    return lvalue + rvalue;
 },
 {
-    ans = __ADD(DIF(LEFT), DIF(RIGHT));
+    ans = __ADD(__DIF(LEFT), __DIF(RIGHT));
     break;
 },
 {
-    if(VAR_T(LEFT->type) && VAR_T(RIGHT->type) && VAR_EQ(LEFT->data.var, RIGHT->data.var))
+    if(IS_NODES_SAME_VAR(LEFT, RIGHT))
     {
         copy = __MUL(__VAL(2), __VAR(LEFT->data.var));
     }
-    else if(VAL_T(LEFT->type) && DBL_EQ(LEFT->data.num, 0))
+    else if(IS_NODE_ZERO(LEFT))
     {
-        copy = CPY(RIGHT);
+        copy = __CPY(RIGHT);
     }
-    else if(VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 0))
+    else if(IS_NODE_ZERO(RIGHT))
     {
-        copy = CPY(LEFT);
+        copy = __CPY(LEFT);
     }
     break;
 },
@@ -47,35 +46,32 @@ DEF_OP(ADD, (((0 << 1) + 0) << 1) + 0, "+", " + ", "+",
 
 DEF_OP(SUB, (((1 << 1) + 0) << 1) + 0, "-", " - ", "-",
 {
-    return calc_left - calc_right;
+    return lvalue - rvalue;
 },
 {
-    ans = __SUB(DIF(LEFT), DIF(RIGHT));
+    ans = __SUB(__DIF(LEFT), __DIF(RIGHT));
     break;
 },
 {
-    if(OP_T(RIGHT->type))
+    if(IS_NODE_OP(RIGHT, SUB))
     {
-    if(RIGHT->data.op == SUB)
+        copy = __ADD(__SUB(__CPY(LEFT), __CPY(RIGHT->left)), __CPY(RIGHT->right));
+    }
+    else if(IS_NODE_OP(RIGHT, ADD))
     {
-        copy = __ADD(__SUB(CPY(LEFT), CPY(RIGHT->left)), CPY(RIGHT->right));
+        copy = __SUB(__SUB(__CPY(LEFT), __CPY(RIGHT->left)), __CPY(RIGHT->right));
     }
-    else if(RIGHT->data.op == ADD)
-    {
-        copy = __SUB(__SUB(CPY(LEFT), CPY(RIGHT->left)), CPY(RIGHT->right));
-    }
-    }
-    else if(VAR_T(LEFT->type) && VAR_T(RIGHT->type) && VAR_EQ(LEFT->data.var, RIGHT->data.var))
+    else if(IS_NODES_SAME_VAR(LEFT, RIGHT))
     {
         copy = __VAL(0);
     }
-    else if(VAL_T(LEFT->type) && DBL_EQ(LEFT->data.num, 0))
+    else if(IS_NODE_ZERO(LEFT))
     {
-        copy = CPY(RIGHT);
+        copy = __CPY(RIGHT);
     }
-    else if(VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 0))
+    else if(IS_NODE_ZERO(RIGHT))
     {
-        copy = CPY(LEFT);
+        copy = __CPY(LEFT);
     }
     break;
 },
@@ -87,26 +83,26 @@ DEF_OP(SUB, (((1 << 1) + 0) << 1) + 0, "-", " - ", "-",
 
 DEF_OP(MUL, (((2 << 1) + 0) << 1) + 0, "*", "\\cdot ", "*",
 {
-    return calc_left * calc_right;
+    return lvalue * rvalue;
 },
 {
-    ans = __ADD(__MUL(CPY(RIGHT), DIF(LEFT)),
-                __MUL(DIF(RIGHT), CPY(LEFT)));
+    ans = __ADD(__MUL(__CPY(RIGHT), __DIF(LEFT)),
+                __MUL(__DIF(RIGHT), __CPY(LEFT)));
     break;
 },
 {
-    if((VAL_T(LEFT->type)  && DBL_EQ(LEFT->data.num , 0)) ||
-       (VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 0)))
+    if(IS_NODE_ZERO(LEFT) ||
+       IS_NODE_ZERO(RIGHT))
     {
         copy = __VAL(0);
     }
-    else if(VAL_T(LEFT->type) && DBL_EQ(LEFT->data.num, 1))
+    else if(IS_NODE_ONE(LEFT))
     {
-        copy = CPY(RIGHT);
+        copy = __CPY(RIGHT);
     }
-    else if(VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 1))
+    else if(IS_NODE_ONE(RIGHT))
     {
-        copy = CPY(LEFT);
+        copy = __CPY(LEFT);
     }
     break;
 },
@@ -118,35 +114,35 @@ DEF_OP(MUL, (((2 << 1) + 0) << 1) + 0, "*", "\\cdot ", "*",
 
 DEF_OP(DIV, (((3 << 1) + 1) << 1) + 0, "/", "\\frac", "/",
 {
-    if(DBL_EQ(calc_right, 0))
+    if(DBL_EQ(rvalue, 0))
     {
         LOG("Division by zero.\n");
         return NAN;
     }
-    return calc_left / calc_right;
+    return lvalue / rvalue;
 },
 {
-    ans = __DIV(__SUB(__MUL(CPY(RIGHT), DIF(LEFT)),
-                      __MUL(DIF(RIGHT), CPY(LEFT))),
-                __POW(CPY(RIGHT), __VAL(2)));
+    ans = __DIV(__SUB(__MUL(__CPY(RIGHT), __DIF(LEFT)),
+                      __MUL(__DIF(RIGHT), __CPY(LEFT))),
+                __POW(__CPY(RIGHT), __VAL(2)));
     break;
 },
 {
-    if(OP_T(RIGHT->type) && (RIGHT->data.op == DIV))
+    if(OP_T(RIGHT) && (RIGHT->data.op == DIV))
     {
-        copy = __MUL(__DIV(CPY(LEFT), CPY(RIGHT->left)), CPY(RIGHT->right));
+        copy = __MUL(__DIV(__CPY(LEFT), __CPY(RIGHT->left)), __CPY(RIGHT->right));
     }
-    else if(VAR_T(LEFT->type) && VAR_T(RIGHT->type) && VAR_EQ(LEFT->data.var, RIGHT->data.var))
+    else if(IS_NODES_SAME_VAR(LEFT, RIGHT))
     {
         copy = __VAL(1);
     }
-    else if(VAL_T(LEFT->type) && DBL_EQ(LEFT->data.num, 0))
+    else if(IS_NODE_ZERO(LEFT))
     {
         copy = __VAL(0);
     }
-    else if(VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 1))
+    else if(IS_NODE_ONE(RIGHT))
     {
-        copy = CPY(LEFT);
+        copy = __CPY(LEFT);
     }
     break;
 },
@@ -158,52 +154,52 @@ DEF_OP(DIV, (((3 << 1) + 1) << 1) + 0, "/", "\\frac", "/",
 
 DEF_OP(POW, (((4 << 1) + 0) << 1) + 0, "^", " ^ ", "**",
 {
-    if(DBL_EQ(calc_right, round(calc_right)))
+    if(DBL_EQ(rvalue, round(rvalue)))
     {
-        if(calc_right > 0)
+        if(rvalue > 0)
         {
-            return FastPow(calc_left, (long long)round(calc_right));
+            return FastPow(lvalue, (long long)round(rvalue));
         }
         else
         {
-            return 1 / FastPow(calc_left, -(long long)round(calc_right));
+            return 1 / FastPow(lvalue, -(long long)round(rvalue));
         }
     }
     else
     {
-        return pow(calc_left, calc_right);
+        return pow(lvalue, rvalue);
     }
 },
 {
-    if(VAL_T(RIGHT->type))
+    if(VAL_T(RIGHT))
     {
-        ans = __MUL(__POW(CPY(LEFT), __VAL(RIGHT->data.num - 1)),
-                    __MUL(__VAL(RIGHT->data.num), DIF(LEFT)));
+        ans = __MUL(__POW(__CPY(LEFT), __VAL(RIGHT->data.num - 1)),
+                    __MUL(__VAL(RIGHT->data.num), __DIF(LEFT)));
     }
     else
     {
-        ans = __MUL(CPY(node), __ADD(__DIV(__MUL(CPY(RIGHT), DIF(LEFT)), CPY(LEFT)),
-                                     __MUL(DIF(RIGHT), __LN(CPY(LEFT)))));
+        ans = __MUL(__CPY(node), __ADD(__DIV(__MUL(__CPY(RIGHT), __DIF(LEFT)), __CPY(LEFT)),
+                                       __MUL(__DIF(RIGHT), __LN(__CPY(LEFT)))));
     }
     break;
 },
 {
-    if(OP_T(LEFT->type) && LEFT->data.op == POW)
+    if(IS_NODE_OP(LEFT, POW))
     {
-        copy = __POW(CPY(LEFT->left), __MUL(CPY(LEFT->right), CPY(RIGHT)));
+        copy = __POW(__CPY(LEFT->left), __MUL(__CPY(LEFT->right), __CPY(RIGHT)));
     }
-    else if((VAL_T(LEFT->type)  && DBL_EQ(LEFT->data.num , 1)) ||
-            (VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 0)))
+    else if(IS_NODE_ONE(LEFT) ||
+            IS_NODE_ZERO(RIGHT))
     {
         copy = __VAL(1);
     }
-    else if(VAL_T(LEFT->type) && DBL_EQ(LEFT->data.num, 0))
+    else if(IS_NODE_ZERO(LEFT))
     {
         copy = __VAL(0);
     }
-    else if(VAL_T(RIGHT->type) && DBL_EQ(RIGHT->data.num, 1))
+    else if(IS_NODE_ONE(RIGHT))
     {
-        copy = CPY(LEFT);
+        copy = __CPY(LEFT);
     }
     break;
 },
@@ -215,11 +211,11 @@ DEF_OP(POW, (((4 << 1) + 0) << 1) + 0, "^", " ^ ", "**",
 
 DEF_OP(LN, (((5 << 1) + 1) << 1) + 1, "ln", "\\ln", "log",
 {
-    return log(calc_right);
+    return log(rvalue);
 },
 {
-    ans = __MUL(__POW(CPY(RIGHT), __VAL(-1)),
-                DIF(RIGHT));
+    ans = __MUL(__POW(__CPY(RIGHT), __VAL(-1)),
+                __DIF(RIGHT));
     break;
 },
 {
@@ -232,16 +228,16 @@ DEF_OP(LN, (((5 << 1) + 1) << 1) + 1, "ln", "\\ln", "log",
 
 DEF_OP(SIN, (((6 << 1) + 1) << 1) + 1, "sin", "\\sin", "sin",
 {
-    return sin(calc_right);
+    return sin(rvalue);
 },
 {
-    ans = __MUL(__COS(CPY(RIGHT)), DIF(RIGHT));
+    ans = __MUL(__COS(__CPY(RIGHT)), __DIF(RIGHT));
     break;
 },
 {
-    if(OP_T(RIGHT->type) && RIGHT->data.op == ASIN)
+    if(IS_NODE_OP(RIGHT, ASIN))
     {
-        copy = CPY(RIGHT->right);
+        copy = __CPY(RIGHT->right);
     }
     break;
 },
@@ -252,17 +248,17 @@ DEF_OP(SIN, (((6 << 1) + 1) << 1) + 1, "sin", "\\sin", "sin",
 
 DEF_OP(COS, (((7 << 1) + 1) << 1) + 1, "cos", "\\cos", "cos",
 {
-    return cos(calc_right);
+    return cos(rvalue);
 },
 {
-    ans = __MUL(__MUL(__VAL(-1), __SIN(CPY(RIGHT))),
-                DIF(RIGHT));
+    ans = __MUL(__MUL(__VAL(-1), __SIN(__CPY(RIGHT))),
+                __DIF(RIGHT));
     break;
 },
 {
-    if(OP_T(RIGHT->type) && RIGHT->data.op == ACOS)
+    if(IS_NODE_OP(RIGHT, ACOS))
     {
-        copy = CPY(RIGHT->right);
+        copy = __CPY(RIGHT->right);
     }
     break;
 },
@@ -273,17 +269,17 @@ DEF_OP(COS, (((7 << 1) + 1) << 1) + 1, "cos", "\\cos", "cos",
 
 DEF_OP(TG, (((8 << 1) + 1) << 1) + 1, "tg", "\\tan", "tan",
 {
-    return tan(calc_right);
+    return tan(rvalue);
 },
 {
-    ans = __MUL(__POW(__COS(CPY(RIGHT)), __VAL(-2)),
-                DIF(RIGHT));
+    ans = __MUL(__POW(__COS(__CPY(RIGHT)), __VAL(-2)),
+                __DIF(RIGHT));
     break;
 },
 {
-    if(OP_T(RIGHT->type) && RIGHT->data.op == ATG)
+    if(IS_NODE_OP(RIGHT, ATG))
     {
-        copy = CPY(RIGHT->right);
+        copy = __CPY(RIGHT->right);
     }
     break;
 },
@@ -294,11 +290,11 @@ DEF_OP(TG, (((8 << 1) + 1) << 1) + 1, "tg", "\\tan", "tan",
 
 DEF_OP(ASIN, (((9 << 1) + 1) << 1) + 1, "asin", "\\arcsin", "asin",
 {
-    return asin(calc_right);
+    return asin(rvalue);
 },
 {
-    ans = __MUL(__POW(__SUB(__VAL(1), __POW(CPY(RIGHT), __VAL(2))), __VAL(-0.5)),
-                DIF(RIGHT));
+    ans = __MUL(__POW(__SUB(__VAL(1), __POW(__CPY(RIGHT), __VAL(2))), __VAL(-0.5)),
+                __DIF(RIGHT));
     break;
 },
 {
@@ -311,11 +307,11 @@ DEF_OP(ASIN, (((9 << 1) + 1) << 1) + 1, "asin", "\\arcsin", "asin",
 
 DEF_OP(ACOS, (((10 << 1) + 1) << 1) + 1, "acos", "\\arccos", "acos",
 {
-    return acos(calc_right);
+    return acos(rvalue);
 },
 {
-    ans = __MUL(__VAL(-1), __MUL(__POW(__SUB(__VAL(1), __POW(CPY(RIGHT), __VAL(2))), __VAL(-0.5)),
-                DIF(RIGHT)));
+    ans = __MUL(__VAL(-1), __MUL(__POW(__SUB(__VAL(1), __POW(__CPY(RIGHT), __VAL(2))), __VAL(-0.5)),
+                __DIF(RIGHT)));
     break;
 },
 {
@@ -328,11 +324,11 @@ DEF_OP(ACOS, (((10 << 1) + 1) << 1) + 1, "acos", "\\arccos", "acos",
 
 DEF_OP(ATG, (((11 << 1) + 1) << 1) + 1, "atg", "\\arctan", "atan",
 {
-    return atan(calc_right);
+    return atan(rvalue);
 },
 {
-    ans = __MUL(__POW(__ADD(__VAL(1), __POW(CPY(RIGHT), __VAL(2))), __VAL(-1)),
-                DIF(RIGHT));
+    ans = __MUL(__POW(__ADD(__VAL(1), __POW(__CPY(RIGHT), __VAL(2))), __VAL(-1)),
+                __DIF(RIGHT));
     break;
 },
 {

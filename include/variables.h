@@ -3,6 +3,8 @@
 
 #include <math.h>
 
+#include "log.h"
+
 const size_t MAX_VARIABLES = 100;
 const size_t N_CONSTANTS   = 2; //e, pi
 
@@ -17,6 +19,8 @@ struct VariablesTable
     size_t size;
     Variable vars[MAX_VARIABLES];
 };
+
+Variable *VariablesParsing(VariablesTable *const table, const char *const var);
 
 VariablesTable VarsTableCtor(void);
 

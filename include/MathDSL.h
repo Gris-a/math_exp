@@ -2,22 +2,28 @@
 #define MATH_DSL_H
 
 //General
-#define DIF(node) SubTreeDerivative(node, var, file)
-#define CPY(node) SubTreeCopy(node)
+#define __DIF(node) SubTreeDerivative(node, var, file)
+#define __CPY(node) SubTreeCopy(node)
 
-#define VAL_T(type) (type == VAL)
-#define VAR_T(type) (type == VAR)
-#define OP_T(type)  (type == OP)
+#define VAL_T(node) (node->type == VAL)
+#define VAR_T(node) (node->type == VAR)
+#define OP_T(node)  (node->type == OP)
 
-#define CALC(node) SubTreeCalculate(tree, node)
 #define TREE_EVAL(tree) TreeCalculate(tree)
 
 #define DBL_EQ(dbl1, dbl2) (abs(dbl1 - dbl2) < M_ERR)
+#define IS_NODE_ZERO(node) (VAL_T(node) && DBL_EQ(node->data.num , 0))
+#define IS_NODE_ONE(node)  (VAL_T(node) && DBL_EQ(node->data.num , 1))
+
 #define VAR_EQ(var1, var2) (strcmp(var1, var2) == 0)
+#define IS_NODES_SAME_VAR(node1, node2) (VAR_T(LEFT) && VAR_T(RIGHT) && VAR_EQ(LEFT->data.var, RIGHT->data.var))
+
+#define OP_EQ(op1, op2) (op1 == op2)
+#define IS_NODE_OP(node, operator) (OP_T(node) && OP_EQ(node->data.op, operator))
 
 #define HAS_VAR(node) SubTreeSearchVar(node, tree->table)
 
-#define LEFT node->left
+#define LEFT  node->left
 #define RIGHT node->right
 
 

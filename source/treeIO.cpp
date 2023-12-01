@@ -7,22 +7,25 @@
 
 #include "../include/treeIO.h"
 
-
 static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_name);
 static NodeType OperatorsProcessing(data_t *data, const char *op_name);
 static NodeType ReadData(char **buf, Tree *tree, data_t *data);
 static Node *ReadSubTree(char *const buffer, Tree *tree);
 static size_t FileSize(const char *file_name);
 
-static bool NeedBrackets(Node *const parent, Node *const node);
 static bool OpCmp(const Operator parent_op, const Operator node_op, const bool is_l_child);
 
-static void VariablesDump(VariablesTable *const table, FILE *dump_file);
-static void NodeDataDump(FILE *dump_file, Node *const node);
-static void SubTreeTextDump(FILE *dump_file, Node *const node, Node *const parent = NULL);
-
-static void NodeDataTex(FILE *tex_file, Node *const node);
+static bool NeedBrackets     (Node *const parent, Node *const node);
 static bool NeedCurlyBrackets(Node *const parent, Node *const node);
+
+static void NodeDataDump(FILE *dump_file, Node *const node);
+static void NodeDataTex (FILE *tex_file , Node *const node);
+static void NodeDataPlot(FILE *tex_file , Node *const node);
+
+static void SubTreePrint(FILE *file, void (*Print)(FILE *const, Node *const), Node *const node, Node *const parent = NULL);
+
+static void VariablesDump(VariablesTable *const table, FILE *dump_file);
+
 static void TexPrefix(Node *const node, FILE *tex_file);
 static void TexInfix(Node *const node, FILE *tex_file);
 
@@ -30,38 +33,31 @@ static void DotNodeCtor(Node *const node, FILE *dot_file);
 static void DotSubTreeCtor(Node *const node, Node *const node_next, const char *const direction, FILE *dot_file);
 static void DotTreeGeneral(Tree *const tree, FILE *dot_file);
 
-static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent = NULL);
 static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name);
 
 
 
 static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_name)
 {
-    bool exists = false;
-    for(size_t i = 0; i < tree->table->size; i++)
-    {
-        if(strcmp(tree->table->vars[i].name, var_name) == 0)
-        {
-            data->var = tree->table->vars[i].name;
-            exists    = true;
-            break;
-        }
-    }
+    Variable *var = VariablesParsing(tree->table, var_name);
 
-    if(!exists)
+    if(!var)
     {
         if(tree->table->size >= MAX_VARIABLES) return UND;
 
         tree->table->vars[tree->table->size].name = strdup(var_name);
         data->var = tree->table->vars[tree->table->size++].name;
     }
+    else
+    {
+        data->var = var->name;
+    }
 
     return VAR;
 }
 
 #define DEF_OP(enum_name, e_code, literal, ...) if(strcmp(op_name, literal) == 0)\
-                                             {data->op = enum_name;}\
-                                             else
+                                                {data->op = enum_name;} else
 static NodeType OperatorsProcessing(data_t *data, const char *op_name)
 {
     #include "../include/Operators.h"
@@ -82,7 +78,7 @@ static NodeType ReadData(char **buf, Tree *tree, data_t *data)
     scaned = sscanf(*buf, " %lg %n", &data->num, &offset);
     if(!scaned)
     {
-        ans = OP;
+        ans    = OP;
         char ch = 0;
         char name_buf[BUF_SIZE] = {};
 
@@ -156,8 +152,10 @@ static Node *ReadSubTree(char *const buffer, Tree *tree)
             return NodeCtor(data, type, left, right);
         }
         default:
+        {
             buf--;
             return NULL;
+        }
     }
 }
 
@@ -170,9 +168,12 @@ static size_t FileSize(const char *file_name)
 
 Tree ReadTree(const char *file_name, VariablesTable *table)
 {
-    FILE *source  = fopen(file_name, "rb");
-    size_t file_size = FileSize(file_name);
+    ASSERT(file_name && table, return {});
 
+    FILE *source  = fopen(file_name, "rb");
+    ASSERT(source, return {});
+
+    size_t file_size = FileSize(file_name);
     char *buffer = (char *)calloc(file_size + 1, sizeof(char));
 
     fread(buffer, file_size, sizeof(char), source);
@@ -213,9 +214,6 @@ static bool NeedCurlyBrackets(Node *const parent, Node *const node)
 {
     return (parent && ((parent->data.op == DIV) || ((parent->data.op == POW) && (parent->right == node))));
 }
-
-
-
 
 
 #define DEF_OP(enum_name, e_code, dump, ...) case enum_name: {fprintf(dump_file, dump);\
@@ -327,20 +325,24 @@ static void NodeDataPlot(FILE *tex_file, Node *const node)
 #undef DEF_OP
 
 
-static void SubTreeTextDump(FILE *dump_file, Node *const node, Node *const parent)
+static void SubTreePrint(FILE *file, void (*Print)(FILE *const, Node *const), Node *const node, Node *const parent)
 {
     if(!node) return;
 
     bool brackets = NeedBrackets(parent, node);
 
-    if(brackets) LOG("(");
+    if(brackets) fprintf(file, "(");
 
-    SubTreeTextDump(dump_file, node->left, node);
-    NodeDataDump(dump_file, node);
-    SubTreeTextDump(dump_file, node->right, node);
+    SubTreePrint(file, Print, node->left, node);
+    Print(file, node);
+    SubTreePrint(file, Print, node->right, node);
 
-    if(brackets) LOG(")");
+    if(brackets) fprintf(file, ")");
 }
+
+
+
+
 
 static void VariablesDump(VariablesTable *const table, FILE *dump_file)
 {
@@ -364,7 +366,7 @@ void TreeTextDump(Tree *const tree, FILE *dump_file)
                        "\tsize: %zu;\n", tree->root, tree->size);
 
     VariablesDump(tree->table, dump_file);
-    SubTreeTextDump(dump_file, tree->root);
+    SubTreePrint(dump_file, NodeDataDump, tree->root);
 
     fprintf(dump_file, "\n\n");
 }
@@ -427,6 +429,24 @@ void TexExprEnd(FILE *tex_file)
     fprintf(tex_file, "\n\\end{dmath*}\n");
 }
 
+void TexStart(FILE *tex_file)
+{
+    fprintf(tex_file, "\\documentclass[12pt,a4paper]{article}\n"
+                      "\\usepackage{amsmath}\n"
+                      "\\usepackage{breqn}\n"
+                      "\\usepackage{fontspec}\n"
+                      "\\setmainfont{CMU Serif}\n"
+                      "\\setsansfont{CMU Sans Serif}\n"
+                      "\\setmonofont{CMU Typewriter Text}\n"
+                      "\n"
+                      "\\begin{document}\n");
+}
+
+void TexEnd(FILE *tex_file)
+{
+    fprintf(tex_file, "\\end{document}\n");
+}
+
 int TreeTex(Tree *const tree, FILE *tex_file)
 {
     TREE_VERIFICATION(tree, EXIT_FAILURE);
@@ -434,7 +454,9 @@ int TreeTex(Tree *const tree, FILE *tex_file)
     ASSERT(tex_file, return EXIT_FAILURE);
 
     TexExprBegin(tex_file);
+
     SubTreeTex(tree->root, tex_file);
+
     TexExprEnd(tex_file);
 
     return EXIT_SUCCESS;
@@ -533,29 +555,15 @@ void TreeDot(Tree *const tree, const char *png_file_name)
 
 
 
-static void SubTreePlot(FILE *plot_script, Node *const node, Node *const parent)
-{
-    if(!node) return;
 
-    bool brackets = NeedBrackets(parent, node);
-
-    if(brackets) fprintf(plot_script, "(");
-
-    SubTreePlot(plot_script, node->left, node);
-    NodeDataPlot(plot_script, node);
-    SubTreePlot(plot_script, node->right, node);
-
-    if(brackets) fprintf(plot_script, ")");
-}
-
-static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name)
+static void PlotGeneral(FILE *plot_script, const double x_min, const double x_max, const double y_min, const double y_max, char *png_name)
 {
     static int num = 0;
 
     bool is_name_generated = false;
-    if(!plot_name)
+    if(!png_name)
     {
-        asprintf(&plot_name, "plot/plot%d.png", num);
+        asprintf(&png_name, "plot/plot%d.png", num);
         is_name_generated = true;
     }
 
@@ -567,43 +575,88 @@ static void PlotGeneral(FILE *plot_script, const double lx_bound, const double r
                          "set output '%s'\n"
                          "set xrange[%lf:%lf]\n"
                          "set yrange[%lf:%lf]\n"
-                         "plot ", plot_name, lx_bound, rx_bound, ly_bound, ry_bound);
+                         "plot ", png_name, x_min, x_max, y_min, y_max);
+
     if(is_name_generated)
     {
-        free(plot_name);
+        free(png_name);
     }
-    num++;
+    else
+    {
+        num++;
+    }
 }
 
-int TreePlot(const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name, const unsigned num_expr, ...)
+int TreePlot(PlotStatus status, ...)
 {
-    va_list expressions = {};
-    va_start(expressions, rx_bound);
+    static FILE *plot_script = NULL;
+    static char *script_name = NULL;
 
-    FILE *plot_script = fopen("plot.gpi", "w");
-    PlotGeneral(plot_script, lx_bound, rx_bound, ly_bound, ry_bound,  plot_name);
+    va_list args = {};
+    va_start(args, status);
 
-    Tree *tree = NULL;
-    char *title = NULL;
-    for(unsigned i = 1; i <= num_expr; i++)
+    switch(status)
     {
-        tree  = va_arg(expressions, Tree *);
-        title = va_arg(expressions, char *);
+        case START: //arguments: OX and OY bounds, file name of future png
+        {
+            ASSERT(!plot_script, return EXIT_FAILURE);
+            ASSERT(!script_name, return EXIT_FAILURE);
 
-        TREE_VERIFICATION(tree, EXIT_FAILURE);
-        SubTreePlot(plot_script, tree->root);
+            script_name = tmpnam(NULL);
+            plot_script = fopen(script_name, "wb");
 
-        if(title)        fprintf(plot_script, " title \"%s\"", title);
-        if(i != num_expr)fprintf(plot_script, ", ");
+            double x_min = va_arg(args, double);
+            double x_max = va_arg(args, double);
+
+            double y_min = va_arg(args, double);
+            double y_max = va_arg(args, double);
+
+            char *png_name = va_arg(args, char *);
+
+            PlotGeneral(plot_script, x_min, x_max, y_min, y_max, png_name);
+
+            break;
+        }
+        case PLOT: //arguments: expression tree and title
+        {
+            ASSERT(plot_script, return EXIT_FAILURE);
+
+            Tree *expr  = va_arg(args, Tree *);
+            char *title = va_arg(args, char *);
+
+            TREE_VERIFICATION(expr, EXIT_FAILURE);
+            SubTreePrint(plot_script, NodeDataPlot, expr->root);
+
+            if(title) fprintf(plot_script, " title \'%s\',", title);
+
+            break;
+        }
+        case END: //arguments: None
+        {
+            fclose(plot_script);
+            plot_script = NULL;
+
+            char *make_exec = NULL;
+            asprintf(&make_exec, "chmod +x %s", script_name);
+
+            system(make_exec);
+            system(script_name);
+            system("clear");
+
+            remove(script_name);
+            script_name = NULL;
+
+            free(make_exec);
+
+            break;
+        }
+        default:
+        {
+            return EXIT_FAILURE;
+        }
     }
 
-    va_end(expressions);
-
-    fclose(plot_script);
-
-    system("chmod +x plot.gpi");
-    system("./plot.gpi");
-    remove("plot.gpi");
+    va_end(args);
 
     return EXIT_SUCCESS;
 }

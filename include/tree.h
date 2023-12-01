@@ -70,6 +70,8 @@ int NodeDtor(Node *node);
 
 Node *SubTreeCopy(Node *sub_tree);
 
+Tree TreeDif(Tree *tree1, Tree *tree2);
+
 size_t SubTreeSize(Node *sub_tree);
 
 void TreeDump(Tree *tree, const char *func, const int line);

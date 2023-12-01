@@ -8,15 +8,16 @@
 
 
 static double FastPow(double a, long long power);
-static Variable *VariablesParsing(Tree *const tree, const char *const var);
 static double SubTreeCalculate(Tree *const tree, Node *const node);
 
+static void PrintRandMessage(FILE *file, const char *message = NULL);
+
+static void TexDerivEq(FILE *file, Node *const node, Node *const deriv);
 static Node *SubTreeDerivative(Node *node, const char *const var, FILE *tex);
 
 static bool SubTreeSearchVar(Node *const node, VariablesTable *table);
 static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes);
 
-static void PrintRandMessage(FILE *file);
 
 static const char *Phrases[] = {"Очевидно, что:",
                                 "Несложно заметить, что:",
@@ -35,9 +36,16 @@ static const char *Phrases[] = {"Очевидно, что:",
                                 "Седьмое правило Бойцовского клуба: поединок во времени не ограничен.\\\\\n"
                                 "Восьмое и последнее правило: если ты в клубе впервые — принимаешь бой."};
 
-static void PrintRandMessage(FILE *file)
+static void PrintRandMessage(FILE *file, const char *message)
 {
-    fprintf(file, "%s\n", Phrases[rand() % (int)(sizeof(Phrases) / sizeof(char *))]);
+    if(!message)
+    {
+        fprintf(file, "%s\n", Phrases[rand() % (int)(sizeof(Phrases) / sizeof(char *))]);
+    }
+    else
+    {
+        fprintf(file, "%s\n", message);
+    }
 }
 
 
@@ -56,19 +64,6 @@ void FillVariables(VariablesTable *table)
     }
 }
 
-
-static Variable *VariablesParsing(Tree *const tree, const char *const var)
-{
-    for(size_t i = 0; i < tree->table->size; i++)
-    {
-        if(strcmp(tree->table->vars[i].name, var) == 0)
-        {
-            return tree->table->vars + i;
-        }
-    }
-
-    return NULL;
-}
 
 static double FastPow(double a, long long power)
 {
@@ -92,21 +87,10 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
 
     switch(node->type)
     {
-        case VAL:
-        {
-            return node->data.num;
-        }
-        case VAR:
-        {
-            Variable *var = VariablesParsing(tree, node->data.var);
-            ASSERT(var, return NAN);
-
-            return var->val;
-        }
         case OP:
         {
-            double calc_left  = SubTreeCalculate(tree, node->left);
-            double calc_right = SubTreeCalculate(tree, node->right);
+            double lvalue = SubTreeCalculate(tree, node->left);
+            double rvalue = SubTreeCalculate(tree, node->right);
 
             switch(node->data.op)
             {
@@ -117,6 +101,15 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
                     return NAN;
                 }
             }
+        }
+        case VAL:
+        {
+            return node->data.num;
+        }
+        case VAR:
+        {
+            Variable *var = VariablesParsing(tree->table, node->data.var);
+            return var->val;
         }
         case UND: //fall through
         default:
@@ -141,24 +134,24 @@ double TreeCalculate(Tree *const tree)
 }
 
 
+static void TexDerivEq(FILE *file, Node *const node, Node *const deriv)
+{
+    TexExprBegin(file);
+    fputc('(', file);
+    SubTreeTex(node, file);
+    fprintf(file, ")\' = ");
+    SubTreeTex(deriv, file);
+    TexExprEnd(file);
+}
+
 #define DEF_OP(enum_name, e_code, dump, tex, plot, eval, differentiate, simp, ...) case enum_name: differentiate
-static Node *SubTreeDerivative(Node *node, const char *const var, FILE *file)
+static Node *SubTreeDerivative(Node *const node, const char *const var, FILE *file)
 {
     ASSERT(node, return NULL);
 
     Node *ans = NULL;
     switch(node->type)
     {
-        case VAL:
-        {
-            ans =  __VAL(0);
-            break;
-        }
-        case VAR:
-        {
-            ans = __VAL(strcmp(node->data.var, var) == 0);
-            break;
-        }
         case OP:
         {
             switch(node->data.op)
@@ -167,31 +160,33 @@ static Node *SubTreeDerivative(Node *node, const char *const var, FILE *file)
                 default:
                 {
                     LOG("Unknown operator.\n");
-                    ans =  NULL;
+                    return NULL;
                 }
             }
+            break;
+        }
+        case VAL:
+        {
+            ans =  __VAL(0);
+            break;
+        }
+        case VAR:
+        {
+            ans = __VAL(VAR_EQ(node->data.var, var));
             break;
         }
         case UND: //fall through
         default:
         {
             LOG("Unknown node type.\n");
-            ans =  NULL;
+            return NULL;
         }
     }
 
     if(file)
     {
         PrintRandMessage(file);
-
-        TexExprBegin(file);
-
-        fputc('(', file);
-        SubTreeTex(node, file);
-        fprintf(file, ")\' = ");
-        SubTreeTex(ans, file);
-
-        TexExprEnd(file);
+        TexDerivEq(file, node, ans);
     }
 
     return ans;
@@ -202,42 +197,34 @@ Tree Derivative(Tree *const tree, const char *const var, FILE *file)
 {
     TREE_VERIFICATION(tree, {});
 
-    Tree derivative = {NULL, tree->table, 1};
+    Tree deriv  = {};
+    deriv.table = tree->table;
 
     if(file)
     {
-        fprintf(file, "\\section{Дифференцирование}\n");
-        fprintf(file, "Продифференцируем выражение:\n");
+        fprintf(file, "\\section{Дифференцирование}\n"
+                      "Продифференцируем выражение:\n");
         TreeTex(tree, file);
     }
 
-    if(!VariablesParsing(tree, var))
+    if(!VariablesParsing(tree->table, var))
     {
-        derivative.root = NodeCtor({}, VAL);
+        deriv.root = NodeCtor({}, VAL);
+        deriv.size = 1;
     }
     else
     {
-
-        derivative.root = SubTreeDerivative(tree->root, var, file);
-        derivative.size = SubTreeSize(derivative.root);
-
+        deriv.root = SubTreeDerivative(tree->root, var, file);
+        deriv.size = SubTreeSize(deriv.root);
     }
 
     if(file)
     {
-        fprintf(file, "Значит:\n");
-
-        TexExprBegin(file);
-
-        fputc('(', file);
-        SubTreeTex(tree->root, file);
-        fprintf(file, ")\' = ");
-        SubTreeTex(derivative.root, file);
-
-        TexExprEnd(file);
+        PrintRandMessage(file, "Значит:");
+        TexDerivEq(file, tree->root, deriv.root);
     }
 
-    return derivative;
+    return deriv;
 }
 
 
@@ -245,15 +232,14 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
 {
     TREE_VERIFICATION(expr, {});
 
-    Variable *var   = VariablesParsing(expr, var_name);
-    if(!var) return {__VAL(TREE_EVAL(expr)), expr->table, 1};
-
+    Variable *var = VariablesParsing(expr->table, var_name);
     double val_prev = var->val;
     var->val        = point;
-    Tree Taylor     = {__VAL(TREE_EVAL(expr)), expr->table, 1};
+
+    Tree Taylor = {__VAL(TREE_EVAL(expr)), expr->table, 1};
 
     Tree temp      = {};
-    Tree tempDiffn = {CPY(expr->root), expr->table, expr->size};
+    Tree tempDiffn = {__CPY(expr->root), expr->table, expr->size};
 
     const size_t size_diff = 8;
     size_t factorial       = 1;
@@ -261,6 +247,8 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
     for(size_t power = 1; power <= n; power++)
     {
         factorial *= power;
+
+        TreeSimplify(&tempDiffn);
         temp = Derivative(&tempDiffn, var_name);
 
         Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TREE_EVAL(&temp) / (double)factorial),
@@ -274,7 +262,101 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
 
     var->val = val_prev;
 
+    TreeSimplify(&Taylor);
     return Taylor;
+}
+
+Tree TaylorAproximationPlot(Tree *expr, const char *var_name, const double point, const size_t n, double x_min, double x_max,
+                                                                                                  double y_min, double y_max, const char *png_name)
+{
+    TREE_VERIFICATION(expr, {});
+
+    TreePlot(START, x_min, x_max, y_min, y_max, png_name);
+    TreePlot(PLOT, expr, "func");
+
+    Variable *var = VariablesParsing(expr->table, var_name);
+    double val_prev = var->val;
+    var->val        = point;
+
+    Tree Taylor = {__VAL(TREE_EVAL(expr)), expr->table, 1};
+    TreePlot(PLOT, &Taylor, "o");
+
+    Tree temp      = {};
+    Tree tempDiffn = {__CPY(expr->root), expr->table, expr->size};
+
+    size_t size_diff = 8;
+    size_t factorial = 1;
+
+    for(size_t power = 1; power <= n; power++)
+    {
+        factorial *= power;
+
+        TreeSimplify(&tempDiffn);
+        temp = Derivative(&tempDiffn, var_name);
+
+        Taylor.root = __ADD(Taylor.root, __MUL(__VAL(TREE_EVAL(&temp) / (double)factorial),
+                                         __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
+        Taylor.size += size_diff;
+
+        TreePlot(PLOT, &Taylor, "o");
+
+        TreeDtor(&tempDiffn, tempDiffn.root);
+        tempDiffn = temp;
+    }
+    TreeDtor(&temp, temp.root);
+
+    var->val = val_prev;
+
+    TreePlot(END);
+
+    TreeSimplify(&Taylor);
+    return Taylor;
+}
+
+Tree TaylorDifferencePlot(Tree *expr, const char *var_name, const double point, const size_t n, double x_min, double x_max,
+                                                                                                double y_min, double y_max, const char *png_name)
+{
+    TREE_VERIFICATION(expr, {});
+
+    TreePlot(START, x_min, x_max, y_min, y_max, png_name);
+
+    Variable *var = VariablesParsing(expr->table, var_name);
+    double val_prev = var->val;
+    var->val        = point;
+
+    Tree TreeDif = {__SUB(__CPY(expr->root), __VAL(TREE_EVAL(expr))), expr->table, expr->size + 2};
+    TreePlot(PLOT, &TreeDif, "o");
+
+    Tree temp      = {};
+    Tree tempDiffn = {__CPY(expr->root), expr->table, expr->size};
+
+    size_t size_diff = 8;
+    size_t factorial = 1;
+
+    for(size_t power = 1; power <= n; power++)
+    {
+        factorial *= power;
+
+        TreeSimplify(&tempDiffn);
+        temp = Derivative(&tempDiffn, var_name);
+
+        TreeDif.root->right = __ADD(TreeDif.root->right, __MUL(__VAL(TREE_EVAL(&temp) / (double)factorial),
+                                                         __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
+        TreeDif.size += size_diff;
+
+        TreePlot(PLOT, &TreeDif, "o");
+
+        TreeDtor(&tempDiffn, tempDiffn.root);
+        tempDiffn = temp;
+    }
+    TreeDtor(&temp, temp.root);
+
+    var->val = val_prev;
+
+    TreePlot(END);
+
+    TreeSimplify(&TreeDif);
+    return TreeDif;
 }
 
 
@@ -286,33 +368,31 @@ static bool SubTreeSearchVar(Node *const node, VariablesTable *table)
     {
         case VAR:
         {
-            bool is_constant = false;
             for(size_t i = 0; i < N_CONSTANTS; i++)
             {
                 if(node->data.var == table->vars[i].name)
                 {
-                    is_constant = true;
-                    break;
+                    return false;
                 }
             }
-            return (!is_constant);
+            return true;
         }
         case OP:
         {
-            bool find  = SubTreeSearchVar(node->left, table);
-            return (find ? find : SubTreeSearchVar(node->right, table));
+            return (SubTreeSearchVar(node->left , table) ||
+                    SubTreeSearchVar(node->right, table));
         }
         case VAL:
         {
-            break;
+            return false;
         }
         case UND: //fall through
         default:
         {
             LOG("Unknown node type.\n");
+            return false;
         }
     }
-    return false;
 }
 
 #define DEF_OP(enum_name, e_code, dump, tex, plot, eval, diff, simplify, op_cmp) case enum_name: simplify
@@ -322,46 +402,48 @@ static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes)
 
     switch(node->type)
     {
-        case VAL: return;
-        case VAR: return;
         case OP:
         {
             Node *copy = NULL;
+
             if(!HAS_VAR(node))
             {
-                copy = __VAL(CALC(node));
+                copy = __VAL(SubTreeCalculate(tree, node));
             }
             else
             {
                 switch(node->data.op)
                 {
                     #include "../include/Operators.h"
-                    default: LOG("Unknown operator.\n"); return;
+                    default:
+                    {
+                        LOG("Unknown operator.\n");
+                        return;
+                    }
                 }
             }
 
             if(copy)
             {
                 *changes = true;
+
                 if(file)
                 {
                     PrintRandMessage(file);
 
                     TexExprBegin(file);
-
                     SubTreeTex(node, file);
                     fprintf(file, " = ");
                     SubTreeTex(copy, file);
-
                     TexExprEnd(file);
                 }
 
                 TreeDtor(tree, node->left);
                 TreeDtor(tree, node->right);
 
-                tree->size += SubTreeSize(copy) - 1;
-
                 *node = *copy;
+                tree->size += SubTreeSize(node) - 1;
+
                 free(copy);
 
                 SubTreeSimplify(tree, node, file, changes);
@@ -374,6 +456,8 @@ static void SubTreeSimplify(Tree *tree, Node *node, FILE *file, bool *changes)
 
             return;
         }
+        case VAL: return;
+        case VAR: return;
         case UND: //fall through
         default:
         {
@@ -391,8 +475,8 @@ int TreeSimplify(Tree *tree, FILE *file)
 
     if(file)
     {
-        fprintf(file, "\\section{Упрощение}\n");
-        fprintf(file, "Упростим выражение:\n");
+        fprintf(file, "\\section{Упрощение}\n"
+                      "Упростим выражение: \n");
         TreeTex(tree, file);
     }
 
