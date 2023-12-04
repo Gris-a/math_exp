@@ -29,6 +29,8 @@ void TexStart(FILE *tex_file);
 
 void TexEnd(FILE *tex_file);
 
+void TexImg(FILE *tex_file, const char *path, const char *message = NULL);
+
 int TreeTex(Tree *const tree, FILE *tex_file);
 
 int TreePlot(PlotStatus status, ...);

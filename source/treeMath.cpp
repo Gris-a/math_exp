@@ -65,20 +65,23 @@ void FillVariables(VariablesTable *table)
 }
 
 
-static double FastPow(double a, long long power)
+static double FastPow(double base, long long power)
 {
-    if(power == 1) return a;
-    if(power == 0) return 1;
+    double result = 1;
+    while(power > 0)
+    {
+        if(power % 2 == 1)
+        {
+            result *= base;
+        }
 
-    if(power % 2 == 0)
-    {
-        return FastPow(a * a, power / 2);
+        base  *= base;
+        power /= 2;
     }
-    else
-    {
-        return a * FastPow(a, power - 1);
-    }
+
+    return result;
 }
+
 
 #define DEF_OP(enum_name, e_code, dump, tex, plot, evaluate, ...) case enum_name: evaluate
 static double SubTreeCalculate(Tree *const tree, Node *const node)
@@ -272,14 +275,17 @@ Tree TaylorAproximationPlot(Tree *expr, const char *var_name, const double point
     TREE_VERIFICATION(expr, {});
 
     TreePlot(START, x_min, x_max, y_min, y_max, png_name);
-    TreePlot(PLOT, expr, "func");
+    TreePlot(PLOT, expr, NULL);
+
+    const size_t title_max_len = 100;
+    char title[title_max_len] = {};
 
     Variable *var = VariablesParsing(expr->table, var_name);
     double val_prev = var->val;
     var->val        = point;
 
     Tree Taylor = {__VAL(TREE_EVAL(expr)), expr->table, 1};
-    TreePlot(PLOT, &Taylor, "o");
+    TreePlot(PLOT, &Taylor, "o(1)");
 
     Tree temp      = {};
     Tree tempDiffn = {__CPY(expr->root), expr->table, expr->size};
@@ -298,7 +304,8 @@ Tree TaylorAproximationPlot(Tree *expr, const char *var_name, const double point
                                          __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
         Taylor.size += size_diff;
 
-        TreePlot(PLOT, &Taylor, "o");
+        sprintf(title, "o((%s - %lg)^%zu)", var_name, point, power);
+        TreePlot(PLOT, &Taylor, title);
 
         TreeDtor(&tempDiffn, tempDiffn.root);
         tempDiffn = temp;
@@ -319,13 +326,17 @@ Tree TaylorDifferencePlot(Tree *expr, const char *var_name, const double point, 
     TREE_VERIFICATION(expr, {});
 
     TreePlot(START, x_min, x_max, y_min, y_max, png_name);
+    TreePlot(PLOT, expr, NULL);
+
+    const size_t title_max_len = 100;
+    char title[title_max_len] = {};
 
     Variable *var = VariablesParsing(expr->table, var_name);
     double val_prev = var->val;
     var->val        = point;
 
     Tree TreeDif = {__SUB(__CPY(expr->root), __VAL(TREE_EVAL(expr))), expr->table, expr->size + 2};
-    TreePlot(PLOT, &TreeDif, "o");
+    TreePlot(PLOT, &TreeDif, "o(1)");
 
     Tree temp      = {};
     Tree tempDiffn = {__CPY(expr->root), expr->table, expr->size};
@@ -344,7 +355,8 @@ Tree TaylorDifferencePlot(Tree *expr, const char *var_name, const double point, 
                                                          __POW(__SUB(__VAR(var->name), __VAL(var->val)), __VAL((double)power))));
         TreeDif.size += size_diff;
 
-        TreePlot(PLOT, &TreeDif, "o");
+        sprintf(title, "o((%s - %lg)^%zu)", var_name, point, power);
+        TreePlot(PLOT, &TreeDif, title);
 
         TreeDtor(&tempDiffn, tempDiffn.root);
         tempDiffn = temp;

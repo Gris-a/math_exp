@@ -431,13 +431,12 @@ void TexExprEnd(FILE *tex_file)
 
 void TexStart(FILE *tex_file)
 {
-    fprintf(tex_file, "\\documentclass[12pt,a4paper]{article}\n"
+    fprintf(tex_file, "\\documentclass[12pt]{article}\n"
+                      "\\usepackage[T2A]{fontenc}\n"
                       "\\usepackage{amsmath}\n"
                       "\\usepackage{breqn}\n"
-                      "\\usepackage{fontspec}\n"
-                      "\\setmainfont{CMU Serif}\n"
-                      "\\setsansfont{CMU Sans Serif}\n"
-                      "\\setmonofont{CMU Typewriter Text}\n"
+                      "\\usepackage{float}\n"
+                      "\\usepackage[english, russian]{babel}\n"
                       "\n"
                       "\\begin{document}\n");
 }
@@ -445,6 +444,15 @@ void TexStart(FILE *tex_file)
 void TexEnd(FILE *tex_file)
 {
     fprintf(tex_file, "\\end{document}\n");
+}
+
+void TexImg(FILE *tex_file, const char *path, const char *message)
+{
+    if(message) fprintf(tex_file, "%s\n", message);
+    fprintf(tex_file, "\\begin{figure}[H]\n"
+                      "\\includegraphics[scale=0.3]{%s}\n"
+                      "\\centering\n"
+                      "\\end{figure}\n", path);
 }
 
 int TreeTex(Tree *const tree, FILE *tex_file)
@@ -627,7 +635,8 @@ int TreePlot(PlotStatus status, ...)
             TREE_VERIFICATION(expr, EXIT_FAILURE);
             SubTreePrint(plot_script, NodeDataPlot, expr->root);
 
-            if(title) fprintf(plot_script, " title \'%s\',", title);
+            if(title) fprintf(plot_script, " title \'%s\'", title);
+            fputc(',', plot_script);
 
             break;
         }
