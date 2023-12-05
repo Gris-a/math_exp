@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,12 +7,6 @@
 #include <stdarg.h>
 
 #include "../include/treeIO.h"
-
-static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_name);
-static NodeType OperatorsProcessing(data_t *data, const char *op_name);
-static NodeType ReadData(char **buf, Tree *tree, data_t *data);
-static Node *ReadSubTree(char *const buffer, Tree *tree);
-static size_t FileSize(const char *file_name);
 
 static bool OpCmp(const Operator parent_op, const Operator node_op, const bool is_l_child);
 
@@ -36,137 +31,35 @@ static void DotTreeGeneral(Tree *const tree, FILE *dot_file);
 static void PlotGeneral(FILE *plot_script, const double lx_bound, const double rx_bound, const double ly_bound, const double ry_bound, char *plot_name);
 
 
+static size_t FileSize(const char *file_name);
 
-static NodeType VariablesProcessing(Tree *tree, data_t *data, char *const var_name)
-{
-    Variable *var = VariablesParsing(tree->table, var_name);
+static void SkipSpaces(const char *str, size_t *pos);
 
-    if(!var)
-    {
-        if(tree->table->size >= MAX_VARIABLES) return UND;
+static Node *ParseExprAddSub(const char *str, size_t *pos, VariablesTable *table);
+static Node *ParseExprMulDiv(const char *str, size_t *pos, VariablesTable *table);
+static Node *ParseExprPow(const char *str, size_t *pos, VariablesTable *table);
+static Node *ParsePrimary(const char *str, size_t *pos, VariablesTable *table);
+static Node *ParseNum(const char *str, size_t *pos);
+static Node *ParseVarOrFunc(const char *str, size_t *pos, VariablesTable *table);
 
-        tree->table->vars[tree->table->size].name = strdup(var_name);
-        data->var = tree->table->vars[tree->table->size++].name;
-    }
-    else
-    {
-        data->var = var->name;
-    }
-
-    return VAR;
-}
-
-#define DEF_OP(enum_name, e_code, literal, ...) if(strcmp(op_name, literal) == 0)\
-                                                {data->op = enum_name;} else
-static NodeType OperatorsProcessing(data_t *data, const char *op_name)
-{
-    #include "../include/Operators.h"
-    /*else*/ return UND;
-
-    return OP;
-}
-#undef DEF_OP
-
-static NodeType ReadData(char **buf, Tree *tree, data_t *data)
-{
-    const size_t BUF_SIZE = 1000;
-
-    NodeType ans = VAL;
-    int offset   = 0;
-
-    int scaned = 0;
-    scaned = sscanf(*buf, " %lg %n", &data->num, &offset);
-    if(!scaned)
-    {
-        ans    = OP;
-        char ch = 0;
-        char name_buf[BUF_SIZE] = {};
-
-        char fmt[BUF_SIZE] = {};
-        sprintf(fmt, " %%%zu[^() \n\r\t\v\f] %%n%%c", BUF_SIZE - 1);
-
-        sscanf(*buf, fmt, name_buf, &offset, &ch);
-        switch(ch)
-        {
-            case '(':
-            {
-                ans = OperatorsProcessing(data, name_buf);
-                break;
-            }
-            case ')':
-            {
-                ans = VariablesProcessing(tree, data, name_buf);
-                break;
-            }
-            default:
-            {
-                return UND;
-            }
-        }
-    }
-
-    *buf += offset;
-
-    return ans;
-}
-
-static Node *ReadSubTree(char *const buffer, Tree *tree)
-{
-    static char *buf = buffer;
-
-    int offset = 0;
-    char ch    = 0;
-
-    sscanf(buf, " %c%n", &ch, &offset);
-    buf += offset;
-
-    switch(ch)
-    {
-        case '(':
-        {
-            Node *left  = ReadSubTree(buf, tree);
-
-            data_t data = {};
-            NodeType type = ReadData(&buf, tree, &data);
-            if(type == UND)
-            {
-                LOG("Invalid data.\n");
-                NodeDtor(left);
-                return NULL;
-            }
-
-            Node *right = ReadSubTree(buf, tree);
-
-            sscanf(buf, " %c%n", &ch, &offset);
-            buf += offset;
-
-            if(ch != ')')
-            {
-                LOG("Invalid data.\n");
-                NodeDtor(left );
-                NodeDtor(right);
-                return NULL;
-            }
-
-            tree->size++;
-            return NodeCtor(data, type, left, right);
-        }
-        default:
-        {
-            buf--;
-            return NULL;
-        }
-    }
-}
 
 static size_t FileSize(const char *file_name)
 {
     struct stat file_info = {};
     stat(file_name, &file_info);
+
     return (size_t)file_info.st_size;
 }
 
-Tree ReadTree(const char *file_name, VariablesTable *table)
+static void SkipSpaces(const char *str, size_t *pos)
+{
+    while(isspace(str[*pos]))
+    {
+        (*pos)++;
+    }
+}
+
+Tree ParseExpr(const char *file_name, VariablesTable *table)
 {
     ASSERT(file_name && table, return {});
 
@@ -174,20 +67,212 @@ Tree ReadTree(const char *file_name, VariablesTable *table)
     ASSERT(source, return {});
 
     size_t file_size = FileSize(file_name);
-    char *buffer = (char *)calloc(file_size + 1, sizeof(char));
+    char *str = (char *)calloc(file_size + 1, sizeof(char));
 
-    fread(buffer, file_size, sizeof(char), source);
+    fread(str, file_size, sizeof(char), source);
     fclose(source);
 
+    size_t temp = 0;
+    size_t *pos = &temp;
+
+    Node *ret_val = ParseExprAddSub(str, pos, table);
+    if(!ret_val)
+    {
+        free(str);
+        return {};
+    }
+
+    SYNTAX_ASSERT(str[*pos] == '\0', free(str);
+                                     SubTreeDtor(ret_val);
+                                     return {});
+    free(str);
+
     Tree tree  = {};
+    tree.root  = ret_val;
+    tree.size  = SubTreeSize(ret_val);
     tree.table = table;
-
-    tree.root = ReadSubTree(buffer, &tree);
-
-    free(buffer);
 
     return tree;
 }
+
+static Node *ParseExprAddSub(const char *str, size_t *pos, VariablesTable *table)
+{
+    Node *ret_val = ParseExprMulDiv(str, pos, table);
+    if(!ret_val) return NULL;
+
+    SkipSpaces(str, pos);
+
+    Node *temp = 0;
+    int op = str[*pos];
+
+    while((op == '+') || (op == '-'))
+    {
+        (*pos)++;
+
+        temp = ParseExprMulDiv(str, pos, table);
+        if(!temp) break;
+
+        switch(op)
+        {
+            case '-': ret_val = NodeCtor({SUB}, OP, ret_val, temp); break;
+            case '+': ret_val = NodeCtor({ADD}, OP, ret_val, temp); break;
+            default: break;
+        }
+
+        SkipSpaces(str, pos);
+        op = str[*pos];
+    }
+
+    return ret_val;
+}
+
+static Node *ParseExprMulDiv(const char *str, size_t *pos, VariablesTable *table)
+{
+    Node *ret_val = ParseExprPow(str, pos, table);
+    if(!ret_val) return NULL;
+
+    SkipSpaces(str, pos);
+
+    Node *temp = 0;
+    int op = str[*pos];
+
+    while((op == '*') || (op == '/'))
+    {
+        (*pos)++;
+
+        temp = ParseExprPow(str, pos, table);
+        if(!temp) break;
+
+        switch(op)
+        {
+            case '*': ret_val = NodeCtor({MUL}, OP, ret_val, temp); break;
+            case '/': ret_val = NodeCtor({DIV}, OP, ret_val, temp); break;
+            default: break;
+        }
+
+        SkipSpaces(str, pos);
+        op = str[*pos];
+    }
+
+    return ret_val;
+}
+
+static Node *ParseExprPow(const char *str, size_t *pos, VariablesTable *table)
+{
+    Node *ret_val = ParsePrimary(str, pos, table);
+    if(!ret_val) return NULL;
+
+    SkipSpaces(str, pos);
+
+    Node *temp = 0;
+    int op = str[*pos];
+
+    while((op == '^'))
+    {
+        (*pos)++;
+
+        temp = ParsePrimary(str, pos, table);
+        if(!temp) break;
+
+        ret_val = NodeCtor({POW}, OP, ret_val, temp);
+
+        SkipSpaces(str, pos);
+        op = str[*pos];
+    }
+
+    return ret_val;
+}
+
+static Node *ParsePrimary(const char *str, size_t *pos, VariablesTable *table)
+{
+    SkipSpaces(str, pos);
+
+    size_t old_pos = *pos;
+    Node *ret_val  = 0;
+
+    if(str[*pos] == '(')
+    {
+        (*pos)++;
+
+        ret_val = ParseExprAddSub(str, pos, table);
+
+        SkipSpaces(str, pos);
+        SYNTAX_ASSERT(ret_val && (str[*pos] == ')'), *pos = old_pos;
+                                                      return ret_val);
+        (*pos)++;
+    }
+    else
+    {
+        ret_val = ParseNum(str, pos);
+
+        if(old_pos == (*pos))
+        {
+            ret_val = ParseVarOrFunc(str, pos, table);
+        }
+    }
+
+    return ret_val;
+}
+
+static Node *ParseNum(const char *str, size_t *pos)
+{
+    char *end_p = NULL;
+
+    if((str[*pos] == '-') && (str[*pos + 1] == '-'))
+    {
+        (*pos)++;
+        return NULL;
+    }
+
+    double result = strtod(str + (*pos), &end_p);
+
+    if(end_p == str + (*pos)) return NULL;
+
+    *pos = (size_t)(end_p - str);
+
+    return NodeCtor({.num = result}, VAL);
+}
+
+
+#define DEF_OP(enum_name, e_code, literal, ...) if(strcmp(name_buf, literal) == 0)\
+                                                {\
+                                                    SYNTAX_ASSERT(str[*pos] == '(', return NULL);\
+                                                    return NodeCtor({enum_name}, OP, NULL, ParsePrimary(str, pos, table));\
+                                                } else
+static Node *ParseVarOrFunc(const char *str, size_t *pos, VariablesTable *table)
+{
+    char name_buf[BUFSIZ / 4] = {};
+    size_t name_pos = 0;
+    while(isalpha(str[*pos]))
+    {
+        name_buf[name_pos] = str[*pos];
+
+        name_pos++;
+        (*pos)++;
+    }
+    SYNTAX_ASSERT(name_pos > 0, return NULL);
+
+    #include "../include/Operators.h"
+    /*else*/
+    {
+        Variable *var = SearchVariable(table, name_buf);
+
+        if(!var)
+        {
+            if(table->size >= MAX_VARIABLES) return NULL;
+
+            table->vars[table->size].name = strdup(name_buf);
+            var = table->vars + (table->size++);
+        }
+
+        return NodeCtor({.var = var->name}, VAR);
+    }
+
+    return NULL;
+}
+#undef DEF_OP
+
+
 
 
 

@@ -10,8 +10,16 @@ enum PlotStatus
     END   = 2
 };
 
-Tree ReadTree(const char *file_name, VariablesTable *table);
+#define SYNTAX_ASSERT(condition, action) if(!(condition))\
+                                         {\
+                                            LOG("Syntax error:\n");\
+                                            LOG("%s\n", str);\
+                                            LOG("%*s", (int)(*pos), "");\
+                                            LOG("^\n");\
+                                            action;\
+                                         }
 
+Tree ParseExpr(const char *file_name, VariablesTable *table);
 
 void TreeTextDump(Tree *const tree, FILE *dump_file);
 

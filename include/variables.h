@@ -20,7 +20,7 @@ struct VariablesTable
     Variable vars[MAX_VARIABLES];
 };
 
-Variable *VariablesParsing(VariablesTable *const table, const char *const var);
+Variable *SearchVariable(VariablesTable *const table, const char *const var);
 
 VariablesTable VarsTableCtor(void);
 

@@ -111,7 +111,7 @@ static double SubTreeCalculate(Tree *const tree, Node *const node)
         }
         case VAR:
         {
-            Variable *var = VariablesParsing(tree->table, node->data.var);
+            Variable *var = SearchVariable(tree->table, node->data.var);
             return var->val;
         }
         case UND: //fall through
@@ -210,7 +210,7 @@ Tree Derivative(Tree *const tree, const char *const var, FILE *file)
         TreeTex(tree, file);
     }
 
-    if(!VariablesParsing(tree->table, var))
+    if(!SearchVariable(tree->table, var))
     {
         deriv.root = NodeCtor({}, VAL);
         deriv.size = 1;
@@ -235,7 +235,9 @@ Tree TaylorSeries(Tree *expr, const char *var_name, const double point, const si
 {
     TREE_VERIFICATION(expr, {});
 
-    Variable *var = VariablesParsing(expr->table, var_name);
+    Variable *var = SearchVariable(expr->table, var_name);
+    if(!var) return {__VAL(TREE_EVAL(expr)), expr->table, 1};
+
     double val_prev = var->val;
     var->val        = point;
 
@@ -277,12 +279,20 @@ Tree TaylorAproximationPlot(Tree *expr, const char *var_name, const double point
     TreePlot(START, x_min, x_max, y_min, y_max, png_name);
     TreePlot(PLOT, expr, NULL);
 
+    Variable *var = SearchVariable(expr->table, var_name);
+    if(!var)
+    {
+        TreePlot(END);
+        return {__VAL(TREE_EVAL(expr)), expr->table, 1};
+    }
+
+    double val_prev = var->val;
+    var->val        = point;
+
+
     const size_t title_max_len = 100;
     char title[title_max_len] = {};
 
-    Variable *var = VariablesParsing(expr->table, var_name);
-    double val_prev = var->val;
-    var->val        = point;
 
     Tree Taylor = {__VAL(TREE_EVAL(expr)), expr->table, 1};
     TreePlot(PLOT, &Taylor, "o(1)");
@@ -328,12 +338,19 @@ Tree TaylorDifferencePlot(Tree *expr, const char *var_name, const double point, 
     TreePlot(START, x_min, x_max, y_min, y_max, png_name);
     TreePlot(PLOT, expr, NULL);
 
+    Variable *var = SearchVariable(expr->table, var_name);
+    if(!var)
+    {
+        TreePlot(END);
+        return {__VAL(0), expr->table, 1};
+    }
+
+    double val_prev = var->val;
+    var->val        = point;
+
     const size_t title_max_len = 100;
     char title[title_max_len] = {};
 
-    Variable *var = VariablesParsing(expr->table, var_name);
-    double val_prev = var->val;
-    var->val        = point;
 
     Tree TreeDif = {__SUB(__CPY(expr->root), __VAL(TREE_EVAL(expr))), expr->table, expr->size + 2};
     TreePlot(PLOT, &TreeDif, "o(1)");

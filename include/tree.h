@@ -62,6 +62,8 @@ struct Tree
 #define TREE_VERIFICATION(tree_ptr, ...)
 #endif
 
+void SubTreeDtor(Node *sub_tree, Tree *tree = NULL);
+
 int TreeDtor(Tree *tree, Node *root);
 
 Node *NodeCtor(const data_t val, const NodeType type, Node *const left = NULL, Node *const right = NULL);

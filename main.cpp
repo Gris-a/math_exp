@@ -13,12 +13,12 @@ int main(void)
     TexStart(TeX_file);
 
     VariablesTable table = VarsTableCtor();
-    Tree tree = ReadTree("aboba.txt", &table);
+    Tree tree = ParseExpr("aboba.txt", &table);
 
     TreePlot(START, 0.0, 3.0, 0.0, 9.0, "plot/func.png");
     TreePlot(PLOT, &tree, NULL);
     TreePlot(END);
-    TexImg(TeX_file, "plot/func.png", "График функции::");
+    TexImg(TeX_file, "plot/func.png", "График функции:");
 
 
 

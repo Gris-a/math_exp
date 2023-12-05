@@ -28,15 +28,15 @@ static Node *SubTreeSearchParent(Node *const node, Node *const search_node)
     return find;
 }
 
-static void SubTreeDtor(Tree *tree, Node *sub_tree)
+void SubTreeDtor(Node *sub_tree, Tree *tree)
 {
     if(!sub_tree) return;
 
-    SubTreeDtor(tree, sub_tree->left );
-    SubTreeDtor(tree, sub_tree->right);
+    SubTreeDtor(sub_tree->left , tree);
+    SubTreeDtor(sub_tree->right, tree);
 
     NodeDtor(sub_tree);
-    tree->size--;
+    if(tree) tree->size--;
 }
 
 int TreeDtor(Tree *tree, Node *root)
@@ -47,12 +47,12 @@ int TreeDtor(Tree *tree, Node *root)
 
     if(root->left)
     {
-        SubTreeDtor(tree, root->left);
+        SubTreeDtor(root->left, tree);
         root->left  = NULL;
     }
     if(root->right)
     {
-        SubTreeDtor(tree, root->right);
+        SubTreeDtor(root->right, tree);
         root->right = NULL;
     }
 
@@ -156,7 +156,7 @@ static void TreeValidation(Tree *const tree, Node *const node, size_t *counter)
     if(node->type == VAR)
     {
         ASSERT(node->data.var, return);
-        ASSERT(VariablesParsing(tree->table, node->data.var), return);
+        ASSERT(SearchVariable(tree->table, node->data.var), return);
     }
 
     if(node->type != OP)
